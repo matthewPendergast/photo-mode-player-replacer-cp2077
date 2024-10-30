@@ -1,22 +1,29 @@
 vReplacer = {
     ready = false,
-    config = require('config')
+    config = require('config'),
+    vEntSelected = 1 -- necessary for AMM compatibility
 }
 
 local isOverlayOpen = false
 local DropdownOptions = {
-    "Default", "Feminine", "Masculine", "Big Body Type",
-    "NPV Feminine 1", "NPV Feminine 2", "NPV Masculine 1", "NPV Masculine 2",
-    "NPV Big Body Type 1", "NPV Big Body Type 2"
+    'Default', 'Feminine', 'Masculine', 'Big Body Type',
+    'NPV Feminine 1', 'NPV Feminine 2', 'NPV Masculine 1', 'NPV Masculine 2',
+    'NPV Big Body Type 1', 'NPV Big Body Type 2'
 }
-local DropdownSelected = "Default"
+local DropdownSelected = 'Default'
 local playerGender = nil
 
-function SetupReplacer()
+function SetupLocalization()
+    local record = 'photo_mode.general.localizedNameForPhotoModePuppet'
+    local newVName = 'V Replacer'
+    local newJohnnyName = 'Johnny Replacer'
+    local newNibblesName = TweakDB:GetFlat(record)[3]
 
-    SetupLocalization()
-    --SetPlayerGender()
+    if ModArchiveExists('Photomode_NPCs_AMM.archive') then
+        newNibblesName = 'Nibbles Replacer'
+    end
 
+    TweakDB:SetFlat(record, {newVName, newJohnnyName, newNibblesName})
 end
 
 function SetupUI ()
@@ -26,67 +33,49 @@ function SetupUI ()
     end
 
     if ImGui.Begin('V Replacer Menu', ImGuiWindowFlags.AlwaysAutoResize) then
-        ImGui.Text('Select an entity:')
+        -- Prevents user from setting gender to nil before it has loaded
+        -- Seems as if it is slowing down initialization of all CET mods
+        -- This check might be better implemented in config
+        -- Maybe set defaults to Johnny if gender is nil
+        if playerGender == nil then
+            ImGui.Text('Initializing')
+        else
+            ImGui.Text('Select an entity:')
 
-        if ImGui.BeginCombo("", DropdownSelected) then
-
-            for _, option in ipairs(DropdownOptions) do
+            if playerGender ~= nil then
+                if ImGui.BeginCombo('', DropdownSelected) then
     
-                if ImGui.Selectable(option, (option == DropdownSelected)) then
-                    DropdownSelected = option
-                    ImGui.SetItemDefaultFocus()
-                    -- To Do: Implement table for options and related values for SetPuppetTable()
-                    if option == "NPV Feminine 2" then
-                        vReplacer.config.SetPuppetTable()
-                        -- To Do: Somehow change which appearances list AMM points to depending on new entity
-                        -- Almost certainly will need to be done within AMM
+                    for index, option in ipairs(DropdownOptions) do
+            
+                        if ImGui.Selectable(option, (option == DropdownSelected)) then
+                            DropdownSelected = option
+                            vReplacer.vEntSelected = index
+                            vReplacer.config.SetPuppetTable(index)
+                            ImGui.SetItemDefaultFocus()
+                        end
+            
                     end
+                    ImGui.EndCombo()
                 end
-    
             end
-    
-            ImGui.EndCombo()
         end
-
         -- To Do: Johnny Replacer option
-
+        -- No need to do V -> Johnny (already covered in Masculine swap)
     end
 
     ImGui.End()
 end
 
-function SetPlayerGender()
-    -- To Do: Needs better implementation
-    -- Currently updates onUpdate
-    -- Player's gender is only needed for setting default V values; potentially not needed at all
+function UpdatePlayerGender()
     if playerGender == nil then
         playerGender = string.gmatch(tostring(Game.GetPlayer():GetResolvedGenderName()), '%-%-%[%[%s*(%a+)%s*%-%-%]%]')()
-        vReplacer.config.SetPlayerEntity(playerGender)
-    end
-end
-
-function SetupLocalization()
-    local record = 'photo_mode.general.localizedNameForPhotoModePuppet'
-    local defaultNames = TweakDB:GetFlat(record)
-    local newVName = 'V Replacer'
-    local newJohnnyName = 'Johnny Replacer'
-    local newNibblesName = defaultNames[3]
-
-    -- To Do: Find LocKey value similar to 'Replacer' in order to have non-English localization; concatenate with default names
-
-    -- If load order changes, retains AMM localization changes for Nibbles Replacer, unless naming is still default
-    -- To Do: This doesn't account for non-English LocKey values for Nibbles, though
-        -- Need to figure out how to return LocKey values through CET and possibly convert to a string for comparison to newNibblesName
-    if ModArchiveExists('Photomode_NPCs_AMM.archive') then
-        if newNibblesName == 'Nibbles' then
-            newNibblesName = 'Nibbles Replacer'
+        if playerGender then
+            vReplacer.config.SetupReplacer(playerGender)
         end
     end
-
-    TweakDB:SetFlat(record, {newVName, newJohnnyName, newNibblesName})
 end
 
-registerForEvent('onTweak', SetupReplacer)
+registerForEvent('onTweak', SetupLocalization)
 
 registerForEvent('onInit', function()
     vReplacer.ready = true
@@ -102,6 +91,7 @@ end)
 
 registerForEvent('onDraw', SetupUI)
 
---registerForEvent('onUpdate', SetPlayerGender)
+-- Needs to be moved out of onUpdate and only checked when a save file is loaded
+registerForEvent('onUpdate', UpdatePlayerGender)
 
 return vReplacer
