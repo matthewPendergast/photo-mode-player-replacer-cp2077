@@ -1,6 +1,7 @@
 vReplacer = {
     ready = false,
     config = require('modules/config.lua'),
+    settings = require('settings'),
     vEntSelected = 1 -- necessary for AMM compatibility
 }
 
@@ -18,14 +19,14 @@ local AMM = nil
 
 function SetupLocalization()
     local record = 'photo_mode.general.localizedNameForPhotoModePuppet'
-    local newVName = 'V Replacer'
-    local newJohnnyName = 'Johnny Replacer'
+    local newVName = settings.V_Replacer_Name
+    local newJohnnyName = settings.Johnny_Replacer_Name
     local newNibblesName = TweakDB:GetFlat(record)[3]
 
     if ModArchiveExists('Photomode_NPCs_AMM.archive') then
-        newNibblesName = 'Nibbles Replacer'
+        newNibblesName = settings.Nibbles_Replacer_Name
     end
-    
+
     TweakDB:SetFlat(record, {newVName, newJohnnyName, newNibblesName})
 end
 
@@ -70,7 +71,6 @@ function SetupUI()
             -- Currently, AMM's Big poses probably won't work at all, since they are hidden by AMM
             
     end
-
     ImGui.End()
 end
 
