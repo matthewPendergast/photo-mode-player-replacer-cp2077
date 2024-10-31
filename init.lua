@@ -1,6 +1,6 @@
 vReplacer = {
     ready = false,
-    config = require('config'),
+    config = require('modules/config.lua'),
     vEntSelected = 1 -- necessary for AMM compatibility
 }
 
@@ -12,6 +12,9 @@ local DropdownOptions = {
 }
 local DropdownSelected = 'Default'
 local playerGender = nil
+local isPhotoModeActive = nil
+local isDefaultAppearance = nil
+local AMM = nil
 
 function SetupLocalization()
     local record = 'photo_mode.general.localizedNameForPhotoModePuppet'
@@ -22,11 +25,11 @@ function SetupLocalization()
     if ModArchiveExists('Photomode_NPCs_AMM.archive') then
         newNibblesName = 'Nibbles Replacer'
     end
-
+    
     TweakDB:SetFlat(record, {newVName, newJohnnyName, newNibblesName})
 end
 
-function SetupUI ()
+function SetupUI()
 
     if not isOverlayOpen then
         return
@@ -41,17 +44,17 @@ function SetupUI ()
             ImGui.Text('Initializing')
         else
             ImGui.Text('Select an entity:')
-
             if playerGender ~= nil then
                 if ImGui.BeginCombo('', DropdownSelected) then
-    
                     for index, option in ipairs(DropdownOptions) do
-            
                         if ImGui.Selectable(option, (option == DropdownSelected)) then
                             DropdownSelected = option
                             vReplacer.vEntSelected = index
                             vReplacer.config.SetPuppetTable(index)
                             ImGui.SetItemDefaultFocus()
+                            if index ~= 1 then
+                                isDefaultAppearance = true
+                            end
                         end
             
                     end
@@ -61,6 +64,11 @@ function SetupUI ()
         end
         -- To Do: Johnny Replacer option
         -- No need to do V -> Johnny (already covered in Masculine swap)
+
+        -- To Do:
+            -- Also need to fix how AMM chooses available poses so that it accurately reflects gender and frame swaps
+            -- Currently, AMM's Big poses probably won't work at all, since they are hidden by AMM
+            
     end
 
     ImGui.End()
@@ -75,10 +83,25 @@ function UpdatePlayerGender()
     end
 end
 
+function FixDefaultAppearance()
+    if isPhotoModeActive and vReplacer.vEntSelected ~= 1 and isDefaultAppearance then
+        -- AMM.API.ChangeAppearance() call
+    end
+end
+
 registerForEvent('onTweak', SetupLocalization)
 
 registerForEvent('onInit', function()
     vReplacer.ready = true
+    AMM = GetMod('AppearanceMenuMod')
+
+    -- Where should this be? Works properly in onInit but seems out of place
+    Override("PhotoModeSystem", "IsPhotoModeActive", function(this, wrappedMethod)
+        if isPhotoModeActive ~= wrappedMethod() then
+            isPhotoModeActive = wrappedMethod()
+        end
+    end)
+
 end)
 
 registerForEvent('onOverlayOpen', function()
@@ -91,7 +114,11 @@ end)
 
 registerForEvent('onDraw', SetupUI)
 
--- Needs to be moved out of onUpdate and only checked when a save file is loaded
-registerForEvent('onUpdate', UpdatePlayerGender)
+-- UpdatePlayerGender() to be moved out of onUpdate and only checked when a save file is loaded
+-- Similarly, FixDefaultAppearance() should be called when photo mode is entered, then check for conditions
+registerForEvent('onUpdate', function()
+    UpdatePlayerGender()
+    FixDefaultAppearance()
+end)
 
 return vReplacer
