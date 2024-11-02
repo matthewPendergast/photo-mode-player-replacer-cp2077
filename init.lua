@@ -5,29 +5,27 @@ vReplacer = {
     vEntSelected = 1 -- necessary for AMM compatibility
 }
 
+local AMM = nil
+local playerGender = nil
 local isOverlayOpen = false
+local isPhotoModeActive = nil
+local isDefaultAppearance = nil
 local DropdownOptions = {
     'Default', 'Feminine', 'Masculine', 'Big Body Type',
     'NPV Feminine 1', 'NPV Feminine 2', 'NPV Masculine 1', 'NPV Masculine 2',
     'NPV Big Body Type 1', 'NPV Big Body Type 2'
 }
 local DropdownSelected = 'Default'
-local playerGender = nil
-local isPhotoModeActive = nil
-local isDefaultAppearance = nil
-local AMM = nil
 
 function SetupLocalization()
     local record = 'photo_mode.general.localizedNameForPhotoModePuppet'
-    local newVName = settings.V_Replacer_Name
-    local newJohnnyName = settings.Johnny_Replacer_Name
     local newNibblesName = TweakDB:GetFlat(record)[3]
 
     if ModArchiveExists('Photomode_NPCs_AMM.archive') then
-        newNibblesName = settings.Nibbles_Replacer_Name
+        newNibblesName = settings.Nibbles
     end
 
-    TweakDB:SetFlat(record, {newVName, newJohnnyName, newNibblesName})
+    TweakDB:SetFlat(record, {settings.V, settings.Johnny, newNibblesName})
 end
 
 function SetupUI()
@@ -57,7 +55,6 @@ function SetupUI()
                                 isDefaultAppearance = true
                             end
                         end
-            
                     end
                     ImGui.EndCombo()
                 end
@@ -69,7 +66,6 @@ function SetupUI()
         -- To Do:
             -- Also need to fix how AMM chooses available poses so that it accurately reflects gender and frame swaps
             -- Currently, AMM's Big poses probably won't work at all, since they are hidden by AMM
-            
     end
     ImGui.End()
 end
@@ -85,7 +81,10 @@ end
 
 function FixDefaultAppearance()
     if isPhotoModeActive and vReplacer.vEntSelected ~= 1 and isDefaultAppearance then
+        AMM.Tools:SetCurrentTarget(AMM.Tools:GetVTarget()) -- isn't pulling the correct target, check GetVTarget compatibility
         -- AMM.API.ChangeAppearance() call
+        -- or similar function, maybe using AMM.Tools:GetVTarget() ?
+        isDefaultAppearance = false
     end
 end
 

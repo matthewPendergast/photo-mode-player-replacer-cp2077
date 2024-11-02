@@ -4,9 +4,10 @@ settings = {
 -- Localization --
 ------------------
 
-V_Replacer_Name = "V Replacer",
-Johnny_Replacer_Name = "Johnny Replacer",
-Nibbles_Replacer_Name = "Nibbles Replacer",
+-- Display names for Photo Mode character options:
+V = "V Replacer",
+Johnny = "Johnny Replacer",
+Nibbles = "Nibbles Replacer",
 
 }
 
