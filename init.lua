@@ -17,18 +17,7 @@ local AMM = nil
 local playerGender = nil
 local isOverlayOpen = false
 local isPhotoModeActive = nil
-local newDefaults = {
-    nil,
-    'Panam Palmer_Default',
-    'Johnny Silverhand_Default',
-    'Jackie Welles_Default',
-    'appearance_01',
-    'appearance_01',
-    'appearance_01',
-    'appearance_01',
-    'appearance_01',
-    'appearance_01',
-}
+local newDefaults = {}
 
 function vReplacer.SetVEntSelected(index)
     vReplacer.vEntSelected = index
@@ -43,10 +32,10 @@ function SetupLocalization()
     local newNibblesName = TweakDB:GetFlat(record)[3]
 
     if ModArchiveExists('Photomode_NPCs_AMM.archive') then
-        newNibblesName = settings.Nibbles
+        newNibblesName = settings.locNames.Nibbles
     end
 
-    TweakDB:SetFlat(record, {settings.V, settings.Johnny, newNibblesName})
+    TweakDB:SetFlat(record, {settings.locNames.V, settings.locNames.Johnny, newNibblesName})
 end
 
 function Listeners()
@@ -55,6 +44,12 @@ function Listeners()
             isPhotoModeActive = wrappedMethod()
         end
     end)
+end
+
+function GetUserDefaults()
+    for i, value in pairs(settings.defNames) do
+        table.insert(newDefaults, value)
+    end
 end
 
 function UpdatePlayerGender()
@@ -93,6 +88,7 @@ registerForEvent('onInit', function()
         AMM = GetMod('AppearanceMenuMod')
     end
     Listeners()
+    GetUserDefaults()
 end)
 
 registerForEvent('onOverlayOpen', function()

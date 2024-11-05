@@ -28,7 +28,7 @@ function interface.SetupUI()
     end
 
     if ImGui.BeginMenuBar() then
-        if ImGui.BeginMenu("File") then
+        if ImGui.BeginMenu("Menu") then
             if ImGui.MenuItem("Set Default Appearances") then
                 -- TODO
             end
