@@ -17,7 +17,7 @@ local AMM = nil
 local playerGender = nil
 local isOverlayOpen = false
 local isPhotoModeActive = nil
-local newDefaults = {}
+local newVDefaults = {}
 
 function vReplacer.SetVEntSelected(index)
     vReplacer.vEntSelected = index
@@ -47,8 +47,8 @@ function Listeners()
 end
 
 function GetUserDefaults()
-    for i, value in pairs(settings.defNames) do
-        table.insert(newDefaults, value)
+    for i, entry in ipairs(settings.defNamesV) do
+        newVDefaults[i] = entry.appearanceName
     end
 end
 
@@ -72,7 +72,7 @@ function FixDefaultAppearance()
             if vReplacer.vEntSelected > 4 then
                 AMM.API.ChangeAppearance(target.handle, 'Cycle')
             end
-            AMM.API.ChangeAppearance(target.handle, newDefaults[vReplacer.vEntSelected])
+            AMM.API.ChangeAppearance(target.handle, newVDefaults[vReplacer.vEntSelected])
             vReplacer.ToggleIsDefaultAppearance(false)
         end
     end

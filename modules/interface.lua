@@ -30,7 +30,7 @@ function interface.SetupUI()
     if ImGui.BeginMenuBar() then
         if ImGui.BeginMenu("Menu") then
             if ImGui.MenuItem("Set Default Appearances") then
-                -- TODO
+                -- To Do: open modal with dropdown menu populated with appearances pulled from AMM, which are then saved to settings.lua
             end
             ImGui.EndMenu()
         end

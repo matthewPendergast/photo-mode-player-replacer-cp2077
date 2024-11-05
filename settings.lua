@@ -1,35 +1,55 @@
 settings = {
 
-    ------------------
-    -- Localization --
-    ------------------
-
     locNames = {
 
-        -- Display names for Photo Mode character options:
+        ------------------
+        -- Localization --
+        ------------------
+
+        -- Display names for Photo Mode character types:
         V = "V Replacer",
         Johnny = "Johnny Replacer",
         Nibbles = "Nibbles Replacer",
 
     },
 
-    -------------------------
-    -- Default Appearances --
-    -------------------------
+    defNamesV = {
 
-    defNames = {
+        -------------------------------
+        -- Default Appearances for V --
+        -------------------------------
 
-        -- Default appearances for each character option:
-        default = nil,
-        feminineNPCs = "Panam Palmer_Default",
-        masculineNPCsAverage = "Johnny Silverhand_Default",
-        masculineNPCsBig = "Jackie Welles_Default",
-        feminineNPV1 = "appearance_01",
-        feminineNPV2 = "appearance_01",
-        masculineNPV1Average = "appearance_01",
-        masculineNPV2Average = "appearance_01",
-        masculineNPV1Big = "appearance_01",
-        masculineNPV2Big = "appearance_01",
+        -- Default appearances for each character type:
+        { type = "Default", appearanceName = nil },
+        { type = "Feminine NPCs", appearanceName = "Panam Palmer_Default" },
+        { type = "Masculine NPCs (average build)", appearanceName = "Johnny Silverhand_Default" },
+        { type = "Masculine NPCs (big build)", appearanceName = "Jackie Welles_Default" },
+        { type = "Feminine NPV 1", appearanceName = "appearance_01" },
+        { type = "Feminine NPV 2", appearanceName = "appearance_01" },
+        { type = "Masculine NPV 1 (average build)", appearanceName = "appearance_01" },
+        { type = "Masculine NPV 2 (average build)", appearanceName = "appearance_01" },
+        { type = "Masculine NPV 1 (big build)", appearanceName = "appearance_01" },
+        { type = "Masculine NPV 2 (big build)", appearanceName = "appearance_01" },
+        
+    },
+
+    defNamesJ = {
+
+        ------------------------------------
+        -- Default Appearances for Johnny --
+        ------------------------------------
+
+        -- Default appearances for each character type:
+        { type = "Default", appearanceName = "default" },
+        { type = "Feminine NPCs", appearanceName = "Judy Alvarez_Default" },
+        { type = "Masculine NPCs (average build)", appearanceName = "Kerry Eurodyne_Old no sunglasses" },
+        { type = "Masculine NPCs (big build)", appearanceName = "River Ward_Default" },
+        { type = "Feminine NPV 1", appearanceName = "appearance_01" },
+        { type = "Feminine NPV 2", appearanceName = "appearance_01" },
+        { type = "Masculine NPV 1 (average build)", appearanceName = "appearance_01" },
+        { type = "Masculine NPV 2 (average build)", appearanceName = "appearance_01" },
+        { type = "Masculine NPV 1 (big build)", appearanceName = "appearance_01" },
+        { type = "Masculine NPV 2 (big build)", appearanceName = "appearance_01" },
 
     }
 }
