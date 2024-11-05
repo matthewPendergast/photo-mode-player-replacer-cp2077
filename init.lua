@@ -1,8 +1,14 @@
+--[[ To Do:
+    - Need to fix how AMM chooses available poses so that it accurately reflects gender and frame swaps
+    - Currently, AMM's Big poses probably won't work at all, since they are hidden by AMM
+]]
+
 vReplacer = {
     ready = false,
     config = require('modules/config.lua'),
+    UI = require('interface.lua'),
     settings = require('settings'),
-    vEntSelected = 1 -- necessary for AMM compatibility
+    vEntSelected = 1, -- necessary for AMM compatibility
 }
 
 local AMM = nil
@@ -10,12 +16,34 @@ local playerGender = nil
 local isOverlayOpen = false
 local isPhotoModeActive = nil
 local isDefaultAppearance = nil
-local DropdownOptions = {
-    'Default', 'Feminine', 'Masculine', 'Big Body Type',
-    'NPV Feminine 1', 'NPV Feminine 2', 'NPV Masculine 1', 'NPV Masculine 2',
-    'NPV Big Body Type 1', 'NPV Big Body Type 2'
+local newDefaults = {
+    nil,
+    'Panam Palmer_Default',
+    'Johnny Silverhand_Default',
+    'Jackie Welles_Default',
+    'appearance_01',
+    'appearance_01',
+    'appearance_01',
+    'appearance_01',
+    'appearance_01',
+    'appearance_01',
 }
-local DropdownSelected = 'Default'
+local vOptions = {
+    'Default (V)',
+    'Feminine NPCs',
+    'Masculine NPCs (average build)',
+    'Masculine NPCs (big build)',
+    'Feminine NPV 1',
+    'Feminine NPV 2',
+    'Masculine NPV 1 (average build)',
+    'Masculine NPV 2 (average build)',
+    'Masculine NPV 1 (big build)',
+    'Masculine NPV 2 (big build'
+}
+local jOptions = vOptions
+jOptions[1] = 'Default (Johnny)'
+local vSelection = 'Default (V)'
+local jSelection = 'Default (Johnny)'
 
 function SetupLocalization()
     local record = 'photo_mode.general.localizedNameForPhotoModePuppet'
@@ -28,44 +56,56 @@ function SetupLocalization()
     TweakDB:SetFlat(record, {settings.V, settings.Johnny, newNibblesName})
 end
 
+function Listeners()
+    Override('PhotoModeSystem', 'IsPhotoModeActive', function(this, wrappedMethod)
+        if isPhotoModeActive ~= wrappedMethod() then
+            isPhotoModeActive = wrappedMethod()
+        end
+    end)
+end
+
 function SetupUI()
 
-    if not isOverlayOpen then
+    ImGui.PushStyleVar(ImGuiStyleVar.WindowMinSize, 250, 0)
+
+    if not ImGui.Begin('Photo Mode Character Selector', true, ImGuiWindowFlags.AlwaysAutoResize) then
+        ImGui.End()
         return
     end
 
-    if ImGui.Begin('V Replacer Menu', ImGuiWindowFlags.AlwaysAutoResize) then
-        -- Prevents user from setting gender to nil before it has loaded
-        -- Seems as if it is slowing down initialization of all CET mods
-        -- This check might be better implemented in config
-        -- Maybe set defaults to Johnny if gender is nil
-        if playerGender == nil then
-            ImGui.Text('Initializing')
-        else
-            ImGui.Text('Select an entity:')
-            if playerGender ~= nil then
-                if ImGui.BeginCombo('', DropdownSelected) then
-                    for index, option in ipairs(DropdownOptions) do
-                        if ImGui.Selectable(option, (option == DropdownSelected)) then
-                            DropdownSelected = option
-                            vReplacer.vEntSelected = index
-                            vReplacer.config.SetPuppetTable(index)
-                            ImGui.SetItemDefaultFocus()
-                            if index ~= 1 then
-                                isDefaultAppearance = true
-                            end
+    if ImGui.BeginTabBar('##TabBar1') then
+        if ImGui.BeginTabItem('V Replacer') then
+            if ImGui.BeginCombo('##Combo1', vSelection) then
+                for index, option in ipairs(vOptions) do
+                    if ImGui.Selectable(option, (option == vSelection)) then
+                        vSelection = option
+                        vReplacer.vEntSelected = index
+                        vReplacer.config.SetPuppetTable(index)
+                        ImGui.SetItemDefaultFocus()
+                        if index ~= 1 then
+                            isDefaultAppearance = true
                         end
                     end
-                    ImGui.EndCombo()
                 end
+                ImGui.EndCombo()
             end
+            ImGui.EndTabItem()
         end
-        -- To Do: Johnny Replacer option
-        -- No need to do V -> Johnny (already covered in Masculine swap)
-
-        -- To Do:
-            -- Also need to fix how AMM chooses available poses so that it accurately reflects gender and frame swaps
-            -- Currently, AMM's Big poses probably won't work at all, since they are hidden by AMM
+        if ImGui.BeginTabItem('Johnny Replacer') then
+            if ImGui.BeginCombo('##Combo2', jSelection) then
+                for index, option in ipairs(vOptions) do
+                    if ImGui.Selectable(option, (option == jSelection)) then
+                        jSelection = option
+                        -- Set Puppet Table for Johnny (function needs second parameter and conditions for Johnny)
+                        -- may also need to FixDefaultAppearance
+                        ImGui.SetItemDefaultFocus()
+                    end
+                end
+                ImGui.EndCombo()
+            end
+            ImGui.EndTabItem()
+        end
+        ImGui.EndTabBar()
     end
     ImGui.End()
 end
@@ -81,26 +121,28 @@ end
 
 function FixDefaultAppearance()
     if isPhotoModeActive and vReplacer.vEntSelected ~= 1 and isDefaultAppearance then
-        AMM.Tools:SetCurrentTarget(AMM.Tools:GetVTarget()) -- isn't pulling the correct target, check GetVTarget compatibility
-        -- AMM.API.ChangeAppearance() call
-        -- or similar function, maybe using AMM.Tools:GetVTarget() ?
-        isDefaultAppearance = false
+        local target = AMM.Tools:GetVTarget()
+        if target then
+            -- If NPV selected, cycle before restoring default
+            if vReplacer.vEntSelected > 4 then
+                AMM.API.ChangeAppearance(target.handle, 'Cycle')
+            end
+            AMM.API.ChangeAppearance(target.handle, newDefaults[vReplacer.vEntSelected])
+            isDefaultAppearance = false
+        end
     end
 end
 
 registerForEvent('onTweak', SetupLocalization)
 
 registerForEvent('onInit', function()
-    vReplacer.ready = true
-    AMM = GetMod('AppearanceMenuMod')
-
-    -- Where should this be? Works properly in onInit but seems out of place
-    Override("PhotoModeSystem", "IsPhotoModeActive", function(this, wrappedMethod)
-        if isPhotoModeActive ~= wrappedMethod() then
-            isPhotoModeActive = wrappedMethod()
-        end
-    end)
-
+    if not vReplacer.ready then
+        vReplacer.ready = true
+    end
+    if not AMM then
+        AMM = GetMod('AppearanceMenuMod')
+    end
+    Listeners()
 end)
 
 registerForEvent('onOverlayOpen', function()
@@ -111,7 +153,13 @@ registerForEvent('onOverlayClose', function()
     isOverlayOpen = false
 end)
 
-registerForEvent('onDraw', SetupUI)
+registerForEvent('onDraw', function ()
+    if not isOverlayOpen then
+        return
+    elseif isOverlayOpen and playerGender ~= nil then
+        SetupUI()
+    end
+end)
 
 -- UpdatePlayerGender() to be moved out of onUpdate and only checked when a save file is loaded
 -- Similarly, FixDefaultAppearance() should be called when photo mode is entered, then check for conditions
