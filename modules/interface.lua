@@ -64,8 +64,8 @@ function interface.SetupUI()
                 for index, option in ipairs(vOptions) do
                     if ImGui.Selectable(option, (option == jSelection)) then
                         jSelection = option
-                        -- Set Puppet Table for Johnny (function needs second parameter and conditions for Johnny)
-                        -- may also need to FixDefaultAppearance
+                        -- To Do: Set Puppet Table for Johnny (function needs second parameter and conditions for Johnny)
+                            -- may also need to FixDefaultAppearance
                         ImGui.SetItemDefaultFocus()
                     end
                 end

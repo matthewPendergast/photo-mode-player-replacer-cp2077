@@ -1,9 +1,3 @@
---[[ To Do:
-    - Update how AMM pulls appearances for V Replacer
-    - Need to fix how AMM chooses available poses so that it accurately reflects gender and frame swaps
-    - Currently, AMM's Big poses probably won't work at all, since they are hidden by AMM
-]]
-
 vReplacer = {
     ready = false,
     config = require('modules/config.lua'),
@@ -63,19 +57,14 @@ function UpdatePlayerGender()
 end
 
 function FixDefaultAppearance()
-    if isPhotoModeActive and vReplacer.vEntSelected ~= 1 and vReplacer.isDefaultAppearance then
-        local target = AMM.Tools:GetVTarget()
-        -- Use for v entity:
-        --print(target)
-        --print(target.handle)
-        if target then
-            -- If NPV selected, cycle before restoring default
-            if vReplacer.vEntSelected > 4 then
-                AMM.API.ChangeAppearance(target.handle, 'Cycle')
-            end
-            AMM.API.ChangeAppearance(target.handle, vDefaultAppearances[vReplacer.vEntSelected])
-            vReplacer.ToggleDefaultAppearance(false)
+    local target = AMM.Tools:GetVTarget()
+    if target then
+        -- If NPV selected, cycle before restoring default
+        if vReplacer.vEntSelected > 4 then
+            AMM.API.ChangeAppearance(target.handle, 'Cycle')
         end
+        AMM.API.ChangeAppearance(target.handle, vDefaultAppearances[vReplacer.vEntSelected])
+        vReplacer.ToggleDefaultAppearance(false)
     end
 end
 
@@ -108,11 +97,11 @@ registerForEvent('onDraw', function ()
     end
 end)
 
--- UpdatePlayerGender() to be moved out of onUpdate and only checked when a save file is loaded
--- Similarly, FixDefaultAppearance() should be called when photo mode is entered, then check for conditions
 registerForEvent('onUpdate', function()
-    UpdatePlayerGender()
-    FixDefaultAppearance()
+    UpdatePlayerGender() -- needs to only be checked when a save file is loaded
+    if isPhotoModeActive and vReplacer.vEntSelected ~= 1 and vReplacer.isDefaultAppearance then
+        FixDefaultAppearance()
+    end
 end)
 
 return vReplacer
