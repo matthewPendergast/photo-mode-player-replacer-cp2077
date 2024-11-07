@@ -17,25 +17,26 @@ local AMM = nil
 local playerGender = nil
 local isOverlayOpen = false
 local isPhotoModeActive = nil
-local newVDefaults = {}
+local vDefaultAppearances = {}
 
 function vReplacer.SetVEntSelected(index)
     vReplacer.vEntSelected = index
 end
 
-function vReplacer.ToggleIsDefaultAppearance(bool)
+function vReplacer.ToggleDefaultAppearance(bool)
     vReplacer.isDefaultAppearance = bool
 end
 
 function SetupLocalization()
     local record = 'photo_mode.general.localizedNameForPhotoModePuppet'
-    local newNibblesName = TweakDB:GetFlat(record)[3]
+    local locNameNibbles = TweakDB:GetFlat(record)[3]
 
+    -- If Nibbles Replacer exists, change naming convention to match this mod; else use default localized name
     if ModArchiveExists('Photomode_NPCs_AMM.archive') then
-        newNibblesName = settings.locNames.Nibbles
+        locNameNibbles = settings.locNames.Nibbles
     end
 
-    TweakDB:SetFlat(record, {settings.locNames.V, settings.locNames.Johnny, newNibblesName})
+    TweakDB:SetFlat(record, {settings.locNames.V, settings.locNames.Johnny, locNameNibbles})
 end
 
 function Listeners()
@@ -46,9 +47,9 @@ function Listeners()
     end)
 end
 
-function GetUserDefaults()
+function GetDefaultAppearances()
     for i, entry in ipairs(settings.defNamesV) do
-        newVDefaults[i] = entry.appearanceName
+        vDefaultAppearances[i] = entry.appearanceName
     end
 end
 
@@ -72,8 +73,8 @@ function FixDefaultAppearance()
             if vReplacer.vEntSelected > 4 then
                 AMM.API.ChangeAppearance(target.handle, 'Cycle')
             end
-            AMM.API.ChangeAppearance(target.handle, newVDefaults[vReplacer.vEntSelected])
-            vReplacer.ToggleIsDefaultAppearance(false)
+            AMM.API.ChangeAppearance(target.handle, vDefaultAppearances[vReplacer.vEntSelected])
+            vReplacer.ToggleDefaultAppearance(false)
         end
     end
 end
@@ -88,7 +89,7 @@ registerForEvent('onInit', function()
         AMM = GetMod('AppearanceMenuMod')
     end
     Listeners()
-    GetUserDefaults()
+    GetDefaultAppearances()
 end)
 
 registerForEvent('onOverlayOpen', function()

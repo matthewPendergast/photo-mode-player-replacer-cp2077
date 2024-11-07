@@ -20,6 +20,8 @@ local jSelection = jOptions[1]
 
 function interface.SetupUI()
 
+    -- To Do: write function to populate vOptions and jOptions from settings, with flag variable to execute the function only once
+
     ImGui.PushStyleVar(ImGuiStyleVar.WindowMinSize, 245, 0)
 
     if not ImGui.Begin('Photo Mode Character Selector', true, ImGuiWindowFlags.AlwaysAutoResize + ImGuiWindowFlags.MenuBar) then
@@ -48,7 +50,7 @@ function interface.SetupUI()
                         config.SetPuppetTable(index)
                         ImGui.SetItemDefaultFocus()
                         if index ~= 1 then
-                            vReplacer.ToggleIsDefaultAppearance(true)
+                            vReplacer.ToggleDefaultAppearance(true)
                         end
                     end
                 end
