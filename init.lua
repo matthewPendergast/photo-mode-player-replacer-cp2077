@@ -17,10 +17,6 @@ function vReplacer.SetVEntSelected(index)
     vReplacer.vEntSelected = index
 end
 
-function vReplacer.ToggleDefaultAppearance(bool)
-    vReplacer.isDefaultAppearance = bool
-end
-
 function SetupLocalization()
     local record = 'photo_mode.general.localizedNameForPhotoModePuppet'
     local locNameNibbles = TweakDB:GetFlat(record)[3]
@@ -48,23 +44,10 @@ function GetDefaultAppearances()
 end
 
 function UpdatePlayerGender()
-    if playerGender == nil then
+    -- Ugly check for changes to player gender until a check can be implemented for when the game loads a new save file
+    if playerGender ~= string.gmatch(tostring(Game.GetPlayer():GetResolvedGenderName()), '%-%-%[%[%s*(%a+)%s*%-%-%]%]')() then
         playerGender = string.gmatch(tostring(Game.GetPlayer():GetResolvedGenderName()), '%-%-%[%[%s*(%a+)%s*%-%-%]%]')()
-        if playerGender then
-            vReplacer.config.SetupReplacer(playerGender)
-        end
-    end
-end
-
-function FixDefaultAppearance()
-    local target = AMM.Tools:GetVTarget()
-    if target then
-        -- If NPV selected, cycle before restoring default
-        if vReplacer.vEntSelected > 4 then
-            AMM.API.ChangeAppearance(target.handle, 'Cycle')
-        end
-        AMM.API.ChangeAppearance(target.handle, vDefaultAppearances[vReplacer.vEntSelected])
-        vReplacer.ToggleDefaultAppearance(false)
+        vReplacer.config.SetupReplacer(playerGender)
     end
 end
 
@@ -98,10 +81,7 @@ registerForEvent('onDraw', function ()
 end)
 
 registerForEvent('onUpdate', function()
-    UpdatePlayerGender() -- needs to only be checked when a save file is loaded
-    if isPhotoModeActive and vReplacer.vEntSelected ~= 1 and vReplacer.isDefaultAppearance then
-        FixDefaultAppearance()
-    end
+    UpdatePlayerGender()
 end)
 
 return vReplacer

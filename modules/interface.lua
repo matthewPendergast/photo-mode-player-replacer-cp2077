@@ -49,9 +49,6 @@ function interface.SetupUI()
                         vReplacer.SetVEntSelected(index)
                         config.SetPuppetTable(index)
                         ImGui.SetItemDefaultFocus()
-                        if index ~= 1 then
-                            vReplacer.ToggleDefaultAppearance(true)
-                        end
                     end
                 end
                 ImGui.EndCombo()
@@ -65,7 +62,6 @@ function interface.SetupUI()
                     if ImGui.Selectable(option, (option == jSelection)) then
                         jSelection = option
                         -- To Do: Set Puppet Table for Johnny (function needs second parameter and conditions for Johnny)
-                            -- may also need to FixDefaultAppearance
                         ImGui.SetItemDefaultFocus()
                     end
                 end
