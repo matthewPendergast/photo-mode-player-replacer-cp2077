@@ -30,8 +30,8 @@ function interface.SetupUI()
     end
 
     if ImGui.BeginMenuBar() then
-        if ImGui.BeginMenu("Menu") then
-            if ImGui.MenuItem("Set Default Appearances") then
+        if ImGui.BeginMenu('Menu') then
+            if ImGui.MenuItem('Set Default Appearances') then
                 -- To Do: open modal with dropdown menu populated with appearances pulled from AMM, which are then saved to settings.lua
             end
             ImGui.EndMenu()
@@ -41,14 +41,19 @@ function interface.SetupUI()
 
     if ImGui.BeginTabBar('##TabBar') then
         if ImGui.BeginTabItem('V Replacer') then
-            ImGui.TextDisabled("Choose a character model:")
+            ImGui.TextDisabled('Choose a character model:')
             if ImGui.BeginCombo('##Combo1', vSelection) then
                 for index, option in ipairs(vOptions) do
                     if ImGui.Selectable(option, (option == vSelection)) then
                         vSelection = option
-                        vReplacer.SetVEntSelected(index)
-                        config.SetPuppetTable(index)
+                        vReplacer.SetVEntity(index)
+                        config.SetPuppetTable(index, 'V')
                         ImGui.SetItemDefaultFocus()
+                        if index == 4 or index == 9 or index == 10 then
+                            vReplacer.ToggleReplacerManBig(true)
+                        else
+                            vReplacer.ToggleReplacerManBig(false)
+                        end
                     end
                 end
                 ImGui.EndCombo()
@@ -56,13 +61,19 @@ function interface.SetupUI()
             ImGui.EndTabItem()
         end
         if ImGui.BeginTabItem('Johnny Replacer') then
-            ImGui.TextDisabled("Choose a character model:")
+            ImGui.TextDisabled('Choose a character model:')
             if ImGui.BeginCombo('##Combo2', jSelection) then
                 for index, option in ipairs(vOptions) do
                     if ImGui.Selectable(option, (option == jSelection)) then
                         jSelection = option
-                        -- To Do: Set Puppet Table for Johnny (function needs second parameter and conditions for Johnny)
+                        vReplacer.SetJEntity(index)
+                        config.SetPuppetTable(index, 'Johnny')
                         ImGui.SetItemDefaultFocus()
+                        if index == 4 or index == 9 or index == 10 then
+                            vReplacer.ToggleReplacerManBig(true)
+                        else
+                            vReplacer.ToggleReplacerManBig(false)
+                        end
                     end
                 end
                 ImGui.EndCombo()

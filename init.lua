@@ -3,18 +3,27 @@ vReplacer = {
     config = require('modules/config.lua'),
     interface = require('modules/interface.lua'),
     settings = require('settings'),
-    vEntSelected = 1, -- necessary for AMM compatibility
-    isDefaultAppearance = nil
+    -- AMM Compatibility variables:
+    vEntity = 1,
+    jEntity = 1,
+    isReplacerManBig = false
 }
 
 local AMM = nil
 local playerGender = nil
 local isOverlayOpen = false
 local isPhotoModeActive = nil
-local vDefaultAppearances = {}
 
-function vReplacer.SetVEntSelected(index)
-    vReplacer.vEntSelected = index
+function vReplacer.SetVEntity(index)
+    vReplacer.vEntity = index
+end
+
+function vReplacer.SetJEntity(index)
+    vReplacer.jEntity = index
+end
+
+function vReplacer.ToggleReplacerManBig(bool)
+    vReplacer.isReplacerManBig = bool
 end
 
 function SetupLocalization()
