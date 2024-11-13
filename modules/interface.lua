@@ -49,6 +49,9 @@ function interface.SetupUI()
                         vReplacer.SetVEntity(index)
                         config.SetPuppetTable(index, 'V')
                         ImGui.SetItemDefaultFocus()
+                        if index ~= 1 then
+                            vReplacer.ToggleDefaultAppearance(true)
+                        end
                         if index == 4 or index == 9 or index == 10 then
                             vReplacer.ToggleReplacerManBig(true)
                         else
@@ -69,6 +72,9 @@ function interface.SetupUI()
                         vReplacer.SetJEntity(index)
                         config.SetPuppetTable(index, 'Johnny')
                         ImGui.SetItemDefaultFocus()
+                        if index ~= 1 then
+                            vReplacer.ToggleDefaultAppearance(true)
+                        end
                         if index == 4 or index == 9 or index == 10 then
                             vReplacer.ToggleReplacerManBig(true)
                         else
