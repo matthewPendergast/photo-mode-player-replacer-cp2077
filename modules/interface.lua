@@ -1,7 +1,7 @@
 interface = {}
 
 local vReplacer = require('init')
-local config = require('modules/config.lua')
+local data = require('modules/data.lua')
 local vOptions = {
     'Default',
     'Feminine NPCs',
@@ -47,7 +47,7 @@ function interface.SetupUI()
                     if ImGui.Selectable(option, (option == vSelection)) then
                         vSelection = option
                         vReplacer.SetVEntity(index)
-                        config.SetPuppetTable(index, 'V')
+                        data.SetPuppetTable(index, 'V')
                         ImGui.SetItemDefaultFocus()
                         if index ~= 1 then
                             vReplacer.ToggleDefaultAppearance(true)
@@ -70,7 +70,7 @@ function interface.SetupUI()
                     if ImGui.Selectable(option, (option == jSelection)) then
                         jSelection = option
                         vReplacer.SetJEntity(index)
-                        config.SetPuppetTable(index, 'Johnny')
+                        data.SetPuppetTable(index, 'Johnny')
                         ImGui.SetItemDefaultFocus()
                         if index ~= 1 then
                             vReplacer.ToggleDefaultAppearance(true)

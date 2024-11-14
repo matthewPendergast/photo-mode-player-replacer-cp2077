@@ -1,5 +1,8 @@
 *.log
 db.sqlite3
-config.lua
+data.lua
 debug.lua
 roadmap.txt
+external/GameSession
+LICENSE
+credits.txt

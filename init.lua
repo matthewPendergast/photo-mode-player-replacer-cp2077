@@ -1,60 +1,79 @@
 vReplacer = {
     ready = false,
-    config = require('modules/config.lua'),
+    data = require('modules/data.lua'),
     interface = require('modules/interface.lua'),
     settings = require('settings'),
-    -- AMM Compatibility --
-    vEntity = 1,
-    jEntity = 1,
-    isDefaultAppearance = false,
-    isReplacerManBig = false
 }
+
+-- External Modules --
 
 local AMM = nil
+local NibblesToNPCs = nil
+local GameSession = require('external/GameSession')
+
+-- Game State --
+
 local playerGender = nil
 local isOverlayOpen = false
-local isPhotoModeActive = nil
+local isPhotoModeActive = false
+
+-- Mod Settings --
+
 local vDefaultAppearances = {}
 local jDefaultAppearances = {}
-local entityIDs = {
-    -- 1: Default V
-    '0x9EDC71E0, 33',
-    -- 2: Feminine NPCs
-    '0x0A3C562E, 27',
-    -- 3: Masculine NPCs (average build)
-    '0xFE8C160B, 25',
-    -- 4: Masculine NPCs (big build)
-    '0xC7412FD0, 21',
-    -- 5: Feminine NPV 1
-    '0xD9FCEA9A, 22',
-    -- 6: Feminine NPV 2
-    '0x40F5BB20, 22',
-    -- 7: Masculine NPV 1 (average build)
-    '0xF5587EED, 23',
-    -- 8: Masculine NPV 2 (average build)
-    '0x6C512F57, 23',
-    -- 9: Masculine NPV 1 (big build)
-    '0xA56B6C23, 22',
-    -- 10: Masculine NPV 2 (big build)
-    '0x3C623D99, 22',
-    -- 11: Johnny Default
-    '0xA773A53F, 33',
-}
+local isDefaultAppearance = false
+local isReplacerManBig = false
 
+-- Accessors --
+
+function vReplacer.GetVEntity()
+    vEntity = vReplacer.vEntity
+    return vEntity
+end
+
+-- @param index: integer 1-10
 function vReplacer.SetVEntity(index)
     vReplacer.vEntity = index
 end
 
+function vReplacer.GetJEntity()
+    return jEntity
+end
+
+-- @param index: integer 1-10
 function vReplacer.SetJEntity(index)
-    vReplacer.jEntity = index
+    jEntity = index
+end
+
+function vReplacer.isDefaultAppearance()
+    return isDefaultAppearance
 end
 
 function vReplacer.ToggleDefaultAppearance(bool)
-    vReplacer.isDefaultAppearance = bool
+    isDefaultAppearance = bool
+end
+
+function vReplacer.IsReplacerManBig()
+    return isReplacerManBig
 end
 
 function vReplacer.ToggleReplacerManBig(bool)
-    vReplacer.isReplacerManBig = bool
+    isReplacerManBig = bool
+end
+
+-- Initialization --
+
+function InitializeMod()
+    AMM = GetMod('AppearanceMenuMod')
+    if not AMM then
+        spdlog.info('[VReplacer] AppearanceMenuMod not installed')
+    end
+    if ModArchiveExists('Photomode_NPCs_AMM.archive') then
+        NibblesToNPCs = true
+    else
+        spdlog.info('[VReplacer] Nibbles To NPCs 2.0 not installed')
+    end
+    vReplacer.ready = true
 end
 
 function SetupLocalization()
@@ -62,7 +81,7 @@ function SetupLocalization()
     local locNameNibbles = TweakDB:GetFlat(record)[3]
 
     -- If Nibbles Replacer exists, change naming convention to match this mod; else use default localized name
-    if ModArchiveExists('Photomode_NPCs_AMM.archive') then
+    if NibblesToNPCs then
         locNameNibbles = settings.locNames.Nibbles
     end
 
@@ -71,13 +90,20 @@ end
 
 function SetupEventHandlers()
     Override('PhotoModeSystem', 'IsPhotoModeActive', function(this, wrappedMethod)
-        if isPhotoModeActive ~= wrappedMethod() then
-            isPhotoModeActive = wrappedMethod()
+        isPhotoModeActive = wrappedMethod()
+        -- Sets default appearance of Johnny Replacer
+        if isPhotoModeActive and jEntity ~= 1 and isDefaultAppearance then
+            SetDefaultAppearance()
+        end
+        -- Resets the condition for updating default appearance if user doesn't change replacers before reopening photo mode
+        if not isPhotoModeActive and not isDefaultAppearance then
+            vReplacer.ToggleDefaultAppearance(true)
         end
     end)
+    
 end
 
-function GetDefaultAppearances()
+function PopulateDefaultAppearances()
     for i, entry in ipairs(settings.defNamesV) do
         vDefaultAppearances[i] = entry.appearanceName
     end
@@ -97,9 +123,9 @@ function SetDefaultAppearance()
             local entity = part:GetComponent(part):GetEntity()
             if entity then
                 local ID = AMM:GetScanID(entity)
-                if ID == entityIDs[11] then
-                    AMM.API.ChangeAppearance(entity, jDefaultAppearances[vReplacer.jEntity])
-                    vReplacer.isDefaultAppearance = false
+                if ID == vReplacer.data.GetEntityID(11) then
+                    AMM.API.ChangeAppearance(entity, jDefaultAppearances[jEntity])
+                    vReplacer.ToggleDefaultAppearance(false)
                 end
             end
         end
@@ -107,24 +133,30 @@ function SetDefaultAppearance()
 end
 
 function UpdatePlayerGender()
-    -- TODO: Ugly check for changes to player gender until a check is implemented with Codeware
-    if playerGender ~= string.gmatch(tostring(Game.GetPlayer():GetResolvedGenderName()), '%-%-%[%[%s*(%a+)%s*%-%-%]%]')() then
+    if not playerGender then
         playerGender = string.gmatch(tostring(Game.GetPlayer():GetResolvedGenderName()), '%-%-%[%[%s*(%a+)%s*%-%-%]%]')()
-        vReplacer.config.SetupReplacer(playerGender)
+        vReplacer.data.SetupReplacer(playerGender)
     end
 end
+
+-- Event Handlers --
 
 registerForEvent('onTweak', SetupLocalization)
 
 registerForEvent('onInit', function()
-    if not vReplacer.ready then
-        vReplacer.ready = true
-    end
-    if not AMM then
-        AMM = GetMod('AppearanceMenuMod')
-    end
+    InitializeMod()
     SetupEventHandlers()
-    GetDefaultAppearances()
+    PopulateDefaultAppearances()
+    GameSession.OnStart(function()
+        if not playerGender then
+            UpdatePlayerGender()
+        end
+    end)
+    GameSession.OnEnd(function()
+        if playerGender then
+            playerGender = nil
+        end
+    end)
 end)
 
 registerForEvent('onOverlayOpen', function()
@@ -138,16 +170,8 @@ end)
 registerForEvent('onDraw', function ()
     if not isOverlayOpen then
         return
-    elseif isOverlayOpen and playerGender ~= nil then
+    elseif isOverlayOpen and playerGender then
         interface.SetupUI()
-    end
-end)
-
-registerForEvent('onUpdate', function()
-    UpdatePlayerGender()
-    -- TODO: This check needs to be changed when SetDefaultAppearance is fully implemented
-    if isPhotoModeActive and vReplacer.jEntity ~= 1 and vReplacer.isDefaultAppearance == true then
-        SetDefaultAppearance()
     end
 end)
 
