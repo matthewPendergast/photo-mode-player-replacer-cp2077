@@ -1,0 +1,8 @@
+*.log
+db.sqlite3
+modules/data.lua
+modules/debug.lua
+roadmap.txt
+external/GameSession.lua
+LICENSE.txt
+credits.txt
