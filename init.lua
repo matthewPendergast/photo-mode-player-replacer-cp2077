@@ -11,9 +11,7 @@ local PMPR = {
 }
 
 -- External Dependencies --
-
 local AMM = nil
-local NibblesToNPCs = nil
 
 -- Game State --
 local playerGender = nil
@@ -61,6 +59,13 @@ local function UpdatePlayerGender()
     PMPR.modules.interface.SetupDefaultV(playerGender)
 end
 
+local function ChangeAppearance(entity, appearance)
+    if appearance ~= nil then
+        entity:PrefetchAppearanceChange(appearance)
+        entity:ScheduleAppearanceChange(appearance)
+    end
+end
+
 local function SetDefaultAppearance()
     local player = Game.GetPlayer()
     local tsq = TSQ_ALL()
@@ -70,8 +75,11 @@ local function SetDefaultAppearance()
             local entity = part:GetComponent(part):GetEntity()
             if entity then
                 local ID = AMM:GetScanID(entity)
-                if ID == PMPR.modules.data.GetEntityID(11) then
-                    AMM.API.ChangeAppearance(entity, jDefaultAppearances[PMPR.GetJEntity()])
+                if ID == PMPR.GetEntityID(1) then
+                    ChangeAppearance(entity, vDefaultAppearances[PMPR.GetVEntity()])
+                    PMPR.ToggleDefaultAppearance(false)
+                elseif ID == PMPR.GetEntityID(11) then
+                    ChangeAppearance(entity, jDefaultAppearances[PMPR.GetJEntity()])
                     PMPR.ToggleDefaultAppearance(false)
                 end
             end
@@ -88,9 +96,7 @@ local function CheckDependencies()
         HandleError('Missing Requirement - Appearance Menu Mod')
     end
 
-    if ModArchiveExists('Photomode_NPCs_AMM.archive') then
-        NibblesToNPCs = true
-    else
+    if not ModArchiveExists('Photomode_NPCs_AMM.archive') then
         HandleError('Missing Requirement - Nibbles To NPCs')
     end
 end
@@ -108,14 +114,22 @@ end
 
 local function SetupObservers()
     Override("PhotoModeSystem", "IsPhotoModeActive", function(this, wrappedMethod)
-        isPhotoModeActive = wrappedMethod()
-        -- Sets default appearance of Johnny Replacer
-        if isPhotoModeActive and PMPR.GetJEntity() ~= 1 and PMPR.IsDefaultAppearance() then
-            SetDefaultAppearance()
+        -- Prevent multiple callbacks on Override
+        if isPhotoModeActive ~= wrappedMethod() then
+            isPhotoModeActive = wrappedMethod()
+            PMPR.modules.interface.ToggleInPhotoMode(wrappedMethod())
+            -- Updates default appearance of replacer
+            if isPhotoModeActive then
+                PMPR.modules.interface.SetNotificationMessage('Unavailable within Photo Mode \n')
+            end
+            -- Resets the condition for updating default appearance if user doesn't change replacers before reopening photo mode
+            if not isPhotoModeActive and not PMPR.IsDefaultAppearance() then
+                PMPR.ToggleDefaultAppearance(true)
+            end
         end
-        -- Resets the condition for updating default appearance if user doesn't change replacers before reopening photo mode
-        if not isPhotoModeActive and not PMPR.IsDefaultAppearance() then
-            PMPR.ToggleDefaultAppearance(true)
+        -- Presently needs the extra callbacks to work as intended
+        if isPhotoModeActive and PMPR.IsDefaultAppearance() then
+            SetDefaultAppearance()
         end
     end)
 end
@@ -126,17 +140,27 @@ registerForEvent('onInit', function ()
     SetupObservers()
 
     PMPR.modules.gameSession.OnStart(function()
+        -- Initialize interface
         if not PMPR.modules.interface.initialized then
             PMPR.modules.interface.Initialize(PMPR.modules.data)
         end
+        -- Set player gender when save file is loaded
         if not playerGender then
             UpdatePlayerGender()
         end
+        -- Switch interface to replacer options
+        PMPR.modules.interface.ToggleLoadingSaveFile(false)
     end)
+
     PMPR.modules.gameSession.OnEnd(function()
+        -- Reset player gender for OnStart()
         if playerGender then
             playerGender = nil
         end
+        -- Switch interface to status feed and reset values
+        PMPR.modules.interface.ToggleLoadingSaveFile(true)
+        PMPR.modules.interface.ResetInterface()
+        PMPR.modules.interface.SetNotificationMessage('Re-initializing... \n')
     end)
 
 end)
@@ -149,7 +173,7 @@ registerForEvent('onOverlayClose', function()
     isOverlayOpen = false
 end)
 
-registerForEvent('onDraw', function() 
+registerForEvent('onDraw', function()
     if not isOverlayOpen then
         return
     elseif isOverlayOpen then

@@ -19,11 +19,40 @@ local interface = {
     notificationMessage = 'Initializing... \n',
 }
 
+local user = {
+    isLoadingSaveFile = false,
+    isInPhotoMode = false,
+}
+
 local vSelection = 'Default'
 local jSelection = 'Default'
 local currentGender = nil
 local defaultTemplate = nil
 local defaultEntity = nil
+
+-- Accessors --
+
+function interface.SetNotificationMessage(message)
+    interface.notificationMessage = message
+end
+
+function interface.IsLoadingSaveFile()
+    return user.isLoadingSaveFile
+end
+
+function interface.ToggleLoadingSaveFile(bool)
+    user.isLoadingSaveFile = bool
+end
+
+function interface.IsInPhotoMode()
+    return user.isInPhotoMode
+end
+
+function interface.ToggleInPhotoMode(bool)
+    user.isInPhotoMode = bool
+end
+
+-- Error Handling --
 
 function interface.NotifyError(message)
     local errorType, errorMessage = message:match("^(.-)( %-.*)$")
@@ -51,28 +80,43 @@ function interface.Initialize(data)
     vSelection = interface.characterTypes[1]
     jSelection = interface.characterTypes[1]
 
+    -- Populate puppetTable
     for i = 1, 4 do
         table.insert(interface.puppetTable, {
             characterRecord = data.tweakDBID[i],
             path = data.defaultPaths[9]
         })
     end
+
     interface.initialized = true
 end
 
 -- Core Logic --
 
 function interface.SetupDefaultV(gender)
+    local isDLCinstalled = IsEP1()
+    local index = 1
+
     currentGender = gender
-    defaultTemplate = TweakDB:GetFlat(interface.tweakDBID[1])
-    if currentGender == 'Female' then
-        defaultEntity = TweakDB:GetFlat(interface.tweakDBID[2])
-    elseif currentGender == 'Male' then
-        defaultEntity = TweakDB:GetFlat(interface.tweakDBID[3])
-    else
-        defaultTemplate = interface.defaultPaths[4]
-        defaultEntity = interface.defaultPaths[4]
+
+    if isDLCinstalled then
+        index = index + 4
     end
+
+    if currentGender == 'Male' then
+        defaultTemplate = interface.defaultPaths[index]
+        defaultEntity = interface.defaultPaths[index + 1]
+    elseif currentGender == 'Female' then
+        index = index + 2
+        defaultTemplate = interface.defaultPaths[index]
+        defaultEntity = interface.defaultPaths[index + 1]
+    else
+        -- Unexpected result, set to Johnny
+        defaultTemplate = interface.defaultPaths[9]
+        defaultEntity = interface.defaultPaths[9]
+        spdlog.info('[Photo Mode Player Replacer] Error: Unexpected result in interface.SetupDefaultV function (V set to Johnny)')
+    end
+
     interface.SetPuppetTable(1, 'V')
 end
 
@@ -120,6 +164,14 @@ function interface.SetPuppetTable(index, character)
     end
 end
 
+function interface.ResetInterface()
+    vSelection = 'Default'
+    jSelection = 'Default'
+    interface.vEntity = 1
+    interface.jEntity = 1
+    interface.SetPuppetTable(1, 'Johnny')
+end
+
 -- ImGui --
 
 function interface.DrawUI()
@@ -142,7 +194,7 @@ function interface.DrawUI()
     end
 
     -- Pre-load
-    if not interface.initialized or interface.errorOccurred then
+    if not interface.initialized or interface.errorOccurred or user.isLoadingSaveFile or user.isInPhotoMode then
         ImGui.TextColored(0.5, 0.5, 0.5, 1, interface.notificationArea)
         interface.notificationMessage = ImGui.InputTextMultiline("##InputTextMultiline9", interface.notificationMessage, 330, -1, interface.statusFeedLines * ImGui.GetTextLineHeight())
     -- Post-load
