@@ -139,7 +139,7 @@ registerForEvent('onInit', function ()
             PMPR.modules.interface.Initialize(PMPR.modules.data)
         end
         -- Reset V default paths and switch interface to replacer options
-        PMPR.modules.interface.SetupDefaultV(playerGender)
+        PMPR.modules.interface.SetupDefaultV()
         PMPR.modules.interface.ToggleLoadingSaveFile(false)
     end)
 
