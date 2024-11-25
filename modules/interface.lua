@@ -92,7 +92,8 @@ end
 
 -- Core Logic --
 
-function interface.SetupDefaultV(gender)
+function interface.SetupDefaultV()
+    local gender = string.gmatch(tostring(Game.GetPlayer():GetResolvedGenderName()), '%-%-%[%[%s*(%a+)%s*%-%-%]%]')()
     local index = 1
 
     if gender == 'Female' then
@@ -150,6 +151,7 @@ function interface.ResetInterface()
     jSelection = 'Default'
     interface.vEntity = 1
     interface.jEntity = 1
+    interface.statusFeedLines = 3
     interface.SetPuppetTable(1, 'Johnny')
 end
 
@@ -221,7 +223,6 @@ function interface.DrawUI()
         end
         ImGui.End()
     end
-
 end
 
 return interface

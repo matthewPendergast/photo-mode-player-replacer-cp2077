@@ -14,7 +14,6 @@ local PMPR = {
 local AMM = nil
 
 -- Game State --
-local playerGender = nil
 local isPhotoModeActive = false
 local isOverlayOpen = false
 
@@ -53,11 +52,6 @@ local function HandleError(message)
 end
 
 -- Core Logic --
-
-local function UpdatePlayerGender()
-    playerGender = string.gmatch(tostring(Game.GetPlayer():GetResolvedGenderName()), '%-%-%[%[%s*(%a+)%s*%-%-%]%]')()
-    PMPR.modules.interface.SetupDefaultV(playerGender)
-end
 
 local function ChangeAppearance(entity, appearance)
     if appearance ~= nil then
@@ -144,19 +138,12 @@ registerForEvent('onInit', function ()
         if not PMPR.modules.interface.initialized then
             PMPR.modules.interface.Initialize(PMPR.modules.data)
         end
-        -- Set player gender when save file is loaded
-        if not playerGender then
-            UpdatePlayerGender()
-        end
-        -- Switch interface to replacer options
+        -- Reset V default paths and switch interface to replacer options
+        PMPR.modules.interface.SetupDefaultV(playerGender)
         PMPR.modules.interface.ToggleLoadingSaveFile(false)
     end)
 
     PMPR.modules.gameSession.OnEnd(function()
-        -- Reset player gender for OnStart()
-        if playerGender then
-            playerGender = nil
-        end
         -- Switch interface to status feed and reset values
         PMPR.modules.interface.ToggleLoadingSaveFile(true)
         PMPR.modules.interface.ResetInterface()
