@@ -26,7 +26,6 @@ local user = {
 
 local vSelection = 'Default'
 local jSelection = 'Default'
-local currentGender = nil
 local defaultTemplate = nil
 local defaultEntity = nil
 
@@ -94,19 +93,16 @@ end
 -- Core Logic --
 
 function interface.SetupDefaultV(gender)
-    local isDLCinstalled = IsEP1()
     local index = 1
 
-    currentGender = gender
-
-    if isDLCinstalled then
+    if IsEP1() then
         index = index + 4
     end
 
-    if currentGender == 'Male' then
+    if gender == 'Male' then
         defaultTemplate = interface.defaultPaths[index]
         defaultEntity = interface.defaultPaths[index + 1]
-    elseif currentGender == 'Female' then
+    elseif gender == 'Female' then
         index = index + 2
         defaultTemplate = interface.defaultPaths[index]
         defaultEntity = interface.defaultPaths[index + 1]
@@ -126,19 +122,11 @@ function interface.SetPuppetTable(index, character)
             -- If entry is not Johnny
             if i ~= 4 then
                 -- If resetting to default V
-                if index == 1 and currentGender then
-                    if currentGender == 'Female' then
-                        if i == 1 then
-                            TweakDB:SetFlat(entry.characterRecord, defaultTemplate)
-                        else
-                            TweakDB:SetFlat(entry.characterRecord, defaultEntity)
-                        end
-                    elseif currentGender == 'Male' then
-                        if i == 1 then
-                            TweakDB:SetFlat(entry.characterRecord, defaultTemplate)
-                        else
-                            TweakDB:SetFlat(entry.characterRecord, defaultEntity)
-                        end
+                if index == 1 then
+                    if i == 1 then
+                        TweakDB:SetFlat(entry.characterRecord, defaultTemplate)
+                    else
+                        TweakDB:SetFlat(entry.characterRecord, defaultEntity)
                     end
                 -- If replacing V
                 else
