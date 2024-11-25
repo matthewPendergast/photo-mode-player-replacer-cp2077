@@ -95,23 +95,16 @@ end
 function interface.SetupDefaultV(gender)
     local index = 1
 
+    if gender == 'Female' then
+        index = index + 2
+    end
+
     if IsEP1() then
         index = index + 4
     end
 
-    if gender == 'Male' then
-        defaultTemplate = interface.defaultPaths[index]
-        defaultEntity = interface.defaultPaths[index + 1]
-    elseif gender == 'Female' then
-        index = index + 2
-        defaultTemplate = interface.defaultPaths[index]
-        defaultEntity = interface.defaultPaths[index + 1]
-    else
-        -- Unexpected result, set to Johnny
-        defaultTemplate = interface.defaultPaths[9]
-        defaultEntity = interface.defaultPaths[9]
-        spdlog.info('[Photo Mode Player Replacer] Error: Unexpected result in interface.SetupDefaultV function (V set to Johnny)')
-    end
+    defaultTemplate = interface.defaultPaths[index]
+    defaultEntity = interface.defaultPaths[index + 1]
 
     interface.SetPuppetTable(1, 'V')
 end
