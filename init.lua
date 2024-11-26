@@ -5,6 +5,7 @@ local PMPR = {
         data = require('modules/data.lua'),
         debug = require('modules/debug.lua'),
         gameSession = require('external/GameSession.lua'),
+        gameUI = require('external/GameUI.lua'),
         interface = require('modules/interface.lua'),
         properties = require('properties.lua'),
     },
@@ -14,7 +15,6 @@ local PMPR = {
 local AMM = nil
 
 -- Game State --
-local isReplacer = false
 local isPhotoModeActive = false
 local isOverlayOpen = false
 
@@ -24,9 +24,11 @@ local jDefaultAppearances = {}
 
 local menuController = {
     posePage = 2,
+    characterAttribute = 38,
     visibleAttribute = 27,
     appearanceAttribute = 9000,
     menuItemLabel = 'CHARACTER APPEARANCE',
+    isDefaultAppearance = true
 }
 
 -- Accessors --
@@ -99,19 +101,20 @@ local function LocatePlayerPuppet()
 end
 
 local function PullAppearancesList(index)
-    local files = {
-        [1] = '',
-        [2] = 'external/photomode_npc_woman_average.lua',
-        [3] = 'external/photomode_npc_man_average.lua',
-        [4] = 'external/photomode_npc_man_big.lua',
-        [5] = 'external/photomode_npc_npv_fem1.lua',
-        [6] = 'external/photomode_npc_npv_fem2.lua',
-        [7] = 'external/photomode_npc_npv_masc1.lua',
-        [8] = 'external/photomode_npc_npv_masc2.lua',
-        [9] = 'external/photomode_npc_npv_big1.lua',
-        [10] = 'external/photomode_npc_npv_big1.lua',
-    }
+    local files = PMPR.modules.data.appearancesLists
     return files[index]
+end
+
+local function GetUserDefaultAppIndex(appearanceList, character)
+    -- To Do: Account for Johnny replacer
+    local defaultAppearance = PMPR.modules.properties.defAppsV[PMPR.GetVEntity()].appearanceName
+    local index
+    for i, appearance in ipairs(appearanceList) do
+        if appearance == defaultAppearance then
+            index = i
+        end
+    end
+    return index
 end
 
 -- Initialization --
@@ -152,6 +155,7 @@ local function SetupObservers()
             -- Resets the condition for updating default appearance if user doesn't change replacers before reopening photo mode
             if not isPhotoModeActive and not PMPR.IsDefaultAppearance() then
                 PMPR.ToggleDefaultAppearance(true)
+                menuController.isDefaultAppearance = true
             end
         end
         -- Presently needs the extra callbacks to work as intended
@@ -170,47 +174,54 @@ local function SetupObservers()
         end
     end)
 
-    Override("gameuiPhotoModeMenuController", "OnShow", function(this, reversedUI, wrappedMethod)
-        local result = wrappedMethod(reversedUI)
+    Observe("gameuiPhotoModeMenuController", "OnShow", function(this, reversedUI)
+        local charactermenuItem = this:GetMenuItem(menuController.characterAttribute)
+        local character = charactermenuItem.OptionLabelRef:GetText()
         local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
-        local index = appearanceMenuItem.OptionSelector.index + 2
-        local filePath = PullAppearancesList(PMPR.GetVEntity())
-        local appearances
+        local index = appearanceMenuItem.OptionSelector.index + 1
+        local filePath, appearances
+
+        if character == 'V' then
+            filePath = PullAppearancesList(PMPR.GetVEntity())
+        elseif character == 'Johnny' then
+            local entIndex = PMPR.GetJEntity()
+            -- Set to Johnny's appearance list index
+            if entIndex == 1 then
+                entIndex = 11
+            end
+            filePath = PullAppearancesList(entIndex)
+        end
 
         if filePath ~= '' then
             appearances = require(filePath)
         else
-            -- To Do: Set menu item invisible
+            -- To Do: Set menu item invisible instead
             appearances = 'V'
         end
 
         -- Initialize menu item values
         appearanceMenuItem.GridRoot:SetVisible(false)
         appearanceMenuItem.ScrollBarRef:SetVisible(false)
+        appearanceMenuItem.allowHold = true
+        appearanceMenuItem.OptionSelector:Clear()
         appearanceMenuItem.OptionSelector.values = appearances
-        appearanceMenuItem.OptionLabelRef:SetText(appearances[index]) -- To Do: Update to reflect user default appearance choices
         appearanceMenuItem.photoModeController = this
 
-        return result
+        if menuController.isDefaultAppearance then
+            index = GetUserDefaultAppIndex(appearances)
+            appearanceMenuItem.OptionSelector.index = index - 1
+            menuController.isDefaultAppearance = false
+        end
+
+        appearanceMenuItem.OptionLabelRef:SetText(appearances[index])
     end)
 
-    Override("gameuiPhotoModeMenuController", "OnAttributeUpdated", function(this, attributeKey, attributeValue, doApply, wrappedMethod)
-        -- rewrite method
-        wrappedMethod(attributeKey, attributeValue, doApply)
+    Observe("gameuiPhotoModeMenuController", "OnAttributeUpdated", function(this, attributeKey, attributeValue, doApply)
         if attributeKey == menuController.appearanceAttribute then
             local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
-            local index = appearanceMenuItem.OptionSelector.index + 2
-            local character, entity = LocatePlayerPuppet()
-            local filePath
-            local appearances
-            if character == 'V' and PMPR.GetVEntity() ~= 1 then
-                filePath = PullAppearancesList(PMPR.GetVEntity())
-            elseif character == 'Johnny' and PMPR.GetJEntity() ~= 1 then
-                filePath = PullAppearancesList(PMPR.GetJEntity())
-            end
-            appearances = require(filePath)
-            appearanceMenuItem.OptionLabelRef:SetText(appearances[index])
-            ChangeAppearance(entity, appearances[index])
+            local appearance = appearanceMenuItem.OptionLabelRef:GetText()
+            local unused, entity = LocatePlayerPuppet()
+            ChangeAppearance(entity, appearance)
         end
     end)
 end
@@ -236,7 +247,6 @@ registerForEvent('onInit', function ()
         PMPR.modules.interface.ResetInterface()
         PMPR.modules.interface.SetNotificationMessage('Re-initializing... \n')
     end)
-
 end)
 
 registerForEvent('onOverlayOpen', function()

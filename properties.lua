@@ -40,7 +40,7 @@ local properties = {
         ------------------------------------
 
         -- Default appearances for each character type:
-        { type = "Default", appearanceName = "default" },
+        { type = "Default", appearanceName = "silverhand_clean_2020__no_glasses" },
         { type = "Feminine NPCs", appearanceName = "Judy Alvarez_Default" },
         { type = "Masculine NPCs (average build)", appearanceName = "Kerry Eurodyne_Old no sunglasses" },
         { type = "Masculine NPCs (big build)", appearanceName = "River Ward_Default" },
