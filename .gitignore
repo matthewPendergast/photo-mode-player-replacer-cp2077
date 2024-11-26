@@ -3,7 +3,7 @@ db.sqlite3
 modules/data.lua
 modules/debug.lua
 roadmap.txt
-external/GameSession.lua
+external/
 LICENSE.txt
 credits.txt
 testingGround.lua

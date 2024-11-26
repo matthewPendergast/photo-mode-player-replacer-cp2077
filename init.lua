@@ -14,12 +14,20 @@ local PMPR = {
 local AMM = nil
 
 -- Game State --
+local isReplacer = false
 local isPhotoModeActive = false
 local isOverlayOpen = false
 
 -- Local Settings --
 local vDefaultAppearances = {}
 local jDefaultAppearances = {}
+
+local menuController = {
+    posePage = 2,
+    visibleAttribute = 27,
+    appearanceAttribute = 9000,
+    menuItemLabel = 'CHARACTER APPEARANCE',
+}
 
 -- Accessors --
 
@@ -39,7 +47,7 @@ function PMPR.ToggleDefaultAppearance(bool)
     PMPR.modules.interface.isDefaultAppearance = bool
 end
 
--- @param index: integer (1-11)
+---@param index integer (1-11)
 function PMPR.GetEntityID(index)
     return PMPR.modules.data.GetEntityID(index)
 end
@@ -60,7 +68,18 @@ local function ChangeAppearance(entity, appearance)
     end
 end
 
-local function SetDefaultAppearance()
+local function SetDefaultAppearance(character, entity)
+    local appearance
+    if character == 'V' then
+        appearance = vDefaultAppearances[PMPR.GetVEntity()]
+    elseif character == 'Johnny' then
+        appearance = jDefaultAppearances[PMPR.GetJEntity()]
+    end
+    PMPR.ToggleDefaultAppearance(false)
+    ChangeAppearance(entity, appearance)
+end
+
+local function LocatePlayerPuppet()
     local player = Game.GetPlayer()
     local tsq = TSQ_ALL()
     local success, parts = Game.GetTargetingSystem():GetTargetParts(player, tsq)
@@ -70,15 +89,29 @@ local function SetDefaultAppearance()
             if entity then
                 local ID = AMM:GetScanID(entity)
                 if ID == PMPR.GetEntityID(1) then
-                    ChangeAppearance(entity, vDefaultAppearances[PMPR.GetVEntity()])
-                    PMPR.ToggleDefaultAppearance(false)
+                    return 'V', entity
                 elseif ID == PMPR.GetEntityID(11) then
-                    ChangeAppearance(entity, jDefaultAppearances[PMPR.GetJEntity()])
-                    PMPR.ToggleDefaultAppearance(false)
+                    return 'Johnny', entity
                 end
             end
         end
     end
+end
+
+local function PullAppearancesList(index)
+    local files = {
+        [1] = '',
+        [2] = 'external/photomode_npc_woman_average.lua',
+        [3] = 'external/photomode_npc_man_average.lua',
+        [4] = 'external/photomode_npc_man_big.lua',
+        [5] = 'external/photomode_npc_npv_fem1.lua',
+        [6] = 'external/photomode_npc_npv_fem2.lua',
+        [7] = 'external/photomode_npc_npv_masc1.lua',
+        [8] = 'external/photomode_npc_npv_masc2.lua',
+        [9] = 'external/photomode_npc_npv_big1.lua',
+        [10] = 'external/photomode_npc_npv_big1.lua',
+    }
+    return files[index]
 end
 
 -- Initialization --
@@ -123,7 +156,61 @@ local function SetupObservers()
         end
         -- Presently needs the extra callbacks to work as intended
         if isPhotoModeActive and PMPR.IsDefaultAppearance() then
-            SetDefaultAppearance()
+            local character, entity = LocatePlayerPuppet()
+            if character and entity then
+                SetDefaultAppearance(character, entity)
+            end
+        end
+    end)
+
+    Override("gameuiPhotoModeMenuController", "AddMenuItem", function(this, label, attributeKey, page, isAdditional, wrappedMethod)
+        wrappedMethod(label, attributeKey, page, isAdditional)
+        if page == menuController.posePage and attributeKey == menuController.visibleAttribute then
+            this:AddMenuItem(menuController.menuItemLabel, menuController.appearanceAttribute, page, false)
+        end
+    end)
+
+    Override("gameuiPhotoModeMenuController", "OnShow", function(this, reversedUI, wrappedMethod)
+        local result = wrappedMethod(reversedUI)
+        local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
+        local index = appearanceMenuItem.OptionSelector.index + 2
+        local filePath = PullAppearancesList(PMPR.GetVEntity())
+        local appearances
+
+        if filePath ~= '' then
+            appearances = require(filePath)
+        else
+            -- To Do: Set menu item invisible
+            appearances = 'V'
+        end
+
+        -- Initialize menu item values
+        appearanceMenuItem.GridRoot:SetVisible(false)
+        appearanceMenuItem.ScrollBarRef:SetVisible(false)
+        appearanceMenuItem.OptionSelector.values = appearances
+        appearanceMenuItem.OptionLabelRef:SetText(appearances[index]) -- To Do: Update to reflect user default appearance choices
+        appearanceMenuItem.photoModeController = this
+
+        return result
+    end)
+
+    Override("gameuiPhotoModeMenuController", "OnAttributeUpdated", function(this, attributeKey, attributeValue, doApply, wrappedMethod)
+        -- rewrite method
+        wrappedMethod(attributeKey, attributeValue, doApply)
+        if attributeKey == menuController.appearanceAttribute then
+            local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
+            local index = appearanceMenuItem.OptionSelector.index + 2
+            local character, entity = LocatePlayerPuppet()
+            local filePath
+            local appearances
+            if character == 'V' and PMPR.GetVEntity() ~= 1 then
+                filePath = PullAppearancesList(PMPR.GetVEntity())
+            elseif character == 'Johnny' and PMPR.GetJEntity() ~= 1 then
+                filePath = PullAppearancesList(PMPR.GetJEntity())
+            end
+            appearances = require(filePath)
+            appearanceMenuItem.OptionLabelRef:SetText(appearances[index])
+            ChangeAppearance(entity, appearances[index])
         end
     end)
 end
