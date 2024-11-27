@@ -192,9 +192,7 @@ function interface.DrawUI()
                             interface.vEntity = index
                             interface.SetPuppetTable(index, 'V')
                             ImGui.SetItemDefaultFocus()
-                            if index ~= 1 then
-                                interface.isDefaultAppearance = true
-                            end
+                            interface.isDefaultAppearance = true
                         end
                     end
                     ImGui.EndCombo()
@@ -210,9 +208,7 @@ function interface.DrawUI()
                             interface.jEntity = index
                             interface.SetPuppetTable(index, 'Johnny')
                             ImGui.SetItemDefaultFocus()
-                            if index ~= 1 then
-                                interface.isDefaultAppearance = true
-                            end
+                            interface.isDefaultAppearance = true
                         end
                     end
                     ImGui.EndCombo()

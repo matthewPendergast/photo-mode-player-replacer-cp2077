@@ -13,6 +13,7 @@ local PMPR = {
 
 -- External Dependencies --
 local AMM = nil
+local NibblesToNPCs = nil
 
 -- Game State --
 local isPhotoModeActive = false
@@ -28,7 +29,12 @@ local menuController = {
     visibleAttribute = 27,
     appearanceAttribute = 9000,
     menuItemLabel = 'CHARACTER APPEARANCE',
-    isDefaultAppearance = true
+    isDefaultAppearance = true,
+    vLocName = nil,
+    johnnyLocName = nil,
+    nibblesLocName = nil,
+    currentAppearance = nil,
+    currentIndex = nil,
 }
 
 -- Accessors --
@@ -98,6 +104,7 @@ local function LocatePlayerPuppet()
             end
         end
     end
+
 end
 
 local function PullAppearancesList(index)
@@ -106,9 +113,13 @@ local function PullAppearancesList(index)
 end
 
 local function GetUserDefaultAppIndex(appearanceList, character)
-    -- To Do: Account for Johnny replacer
-    local defaultAppearance = PMPR.modules.properties.defAppsV[PMPR.GetVEntity()].appearanceName
+    local defaultAppearance
     local index
+    if character == menuController.vLocName then
+        defaultAppearance = PMPR.modules.properties.defAppsV[PMPR.GetVEntity()].appearanceName
+    elseif character == menuController.johnnyLocName then
+        defaultAppearance = PMPR.modules.properties.defAppsJ[PMPR.GetJEntity()].appearanceName
+    end
     for i, appearance in ipairs(appearanceList) do
         if appearance == defaultAppearance then
             index = i
@@ -126,9 +137,12 @@ local function CheckDependencies()
         HandleError('Missing Requirement - Appearance Menu Mod')
     end
 
-    if not ModArchiveExists('Photomode_NPCs_AMM.archive') then
+    if ModArchiveExists('Photomode_NPCs_AMM.archive') then
+        NibblesToNPCs = true
+    else
         HandleError('Missing Requirement - Nibbles To NPCs')
     end
+
 end
 
 local function Initialize()
@@ -140,6 +154,20 @@ local function Initialize()
     for i, entry in ipairs(PMPR.modules.properties.defAppsJ) do
         jDefaultAppearances[i] = entry.appearanceName
     end
+end
+
+function SetupLocalization()
+    local record = PMPR.modules.data.defaultLocNames
+    menuController.vLocName = PMPR.modules.properties.locNames.V
+    menuController.johnnyLocName = PMPR.modules.properties.locNames.Johnny
+    menuController.nibblesLocName = TweakDB:GetFlat(record)[3]
+
+    -- If Nibbles Replacer exists, change naming convention to match this mod; else use default localized name
+    if NibblesToNPCs then
+        menuController.nibblesLocName = PMPR.modules.properties.locNames.Nibbles
+    end
+
+    TweakDB:SetFlat(record, {menuController.vLocName, menuController.johnnyLocName, menuController.nibblesLocName})
 end
 
 local function SetupObservers()
@@ -181,9 +209,16 @@ local function SetupObservers()
         local index = appearanceMenuItem.OptionSelector.index + 1
         local filePath, appearances
 
-        if character == 'V' then
+        -- Initialize menu item values
+        appearanceMenuItem.GridRoot:SetVisible(false)
+        appearanceMenuItem.ScrollBarRef:SetVisible(false)
+        appearanceMenuItem.OptionSelector:Clear()
+        appearanceMenuItem.OptionLabelRef:SetText('Default')
+        appearanceMenuItem.photoModeController = this
+
+        if character == menuController.vLocName then
             filePath = PullAppearancesList(PMPR.GetVEntity())
-        elseif character == 'Johnny' then
+        elseif character == menuController.johnnyLocName then
             local entIndex = PMPR.GetJEntity()
             -- Set to Johnny's appearance list index
             if entIndex == 1 then
@@ -196,35 +231,62 @@ local function SetupObservers()
             appearances = require(filePath)
         else
             -- To Do: Set menu item invisible instead
-            appearances = 'V'
+            appearanceMenuItem.OptionSelector.index = 0
+            menuController.currentAppearance = 'Default'
+            menuController.currentIndex = 0
         end
 
-        -- Initialize menu item values
-        appearanceMenuItem.GridRoot:SetVisible(false)
-        appearanceMenuItem.ScrollBarRef:SetVisible(false)
-        appearanceMenuItem.allowHold = true
-        appearanceMenuItem.OptionSelector:Clear()
         appearanceMenuItem.OptionSelector.values = appearances
-        appearanceMenuItem.photoModeController = this
 
         if menuController.isDefaultAppearance then
-            index = GetUserDefaultAppIndex(appearances)
+            index = GetUserDefaultAppIndex(appearances, character)
             appearanceMenuItem.OptionSelector.index = index - 1
+            appearanceMenuItem.OptionLabelRef:SetText(appearances[index])
+            menuController.currentIndex = index - 1
+            menuController.currentAppearance = appearances[index]
             menuController.isDefaultAppearance = false
         end
-
-        appearanceMenuItem.OptionLabelRef:SetText(appearances[index])
     end)
 
     Observe("gameuiPhotoModeMenuController", "OnAttributeUpdated", function(this, attributeKey, attributeValue, doApply)
-        if attributeKey == menuController.appearanceAttribute then
+        if attributeKey == menuController.characterAttribute then
+            local charactermenuItem = this:GetMenuItem(menuController.characterAttribute)
+            local character = charactermenuItem.OptionLabelRef:GetText()
             local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
             local appearance = appearanceMenuItem.OptionLabelRef:GetText()
-            local unused, entity = LocatePlayerPuppet()
-            ChangeAppearance(entity, appearance)
+
+            if character == menuController.nibblesLocName then
+                appearanceMenuItem.OptionLabelRef:SetText('None')
+                appearanceMenuItem.OptionSelector.index = 0
+            elseif (character == menuController.vLocName or character == menuController.johnnyLocName) and appearance == 'None' then
+                appearanceMenuItem.OptionLabelRef:SetText(menuController.currentAppearance)
+                appearanceMenuItem.OptionSelector.index = menuController.currentIndex
+            end
+        end
+        if attributeKey == menuController.appearanceAttribute then
+            local charactermenuItem = this:GetMenuItem(menuController.characterAttribute)
+            local character = charactermenuItem.OptionLabelRef:GetText()
+            local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
+            local appearance = appearanceMenuItem.OptionLabelRef:GetText()
+
+            if character ~= menuController.nibblesLocName and appearance ~= 'Default' then
+                local unused, entity = LocatePlayerPuppet()
+                ChangeAppearance(entity, appearance)
+                menuController.currentAppearance = appearance
+                menuController.currentIndex = appearanceMenuItem.OptionSelector.index
+            elseif character == menuController.nibblesLocName then
+                appearanceMenuItem.OptionLabelRef:SetText('None')
+                appearanceMenuItem.OptionSelector.index = 0
+            elseif (character == menuController.vLocName or menuController.johnnyLocName) and appearance == 'None' then
+                appearanceMenuItem.OptionLabelRef:SetText(menuController.currentAppearance)
+                appearanceMenuItem.OptionSelector.index = menuController.currentIndex
+            end 
         end
     end)
 end
+
+registerForEvent('onTweak', SetupLocalization)
+
 
 registerForEvent('onInit', function ()
     CheckDependencies()
