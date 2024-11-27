@@ -128,6 +128,16 @@ local function GetUserDefaultAppIndex(appearanceList, character)
     return index
 end
 
+local function RestrictAppearanceMenuItem(character, appearanceMenuItem, appearance)
+    if character == menuController.nibblesLocName then
+        appearanceMenuItem.OptionLabelRef:SetText('None')
+        appearanceMenuItem.OptionSelector.index = 0
+    elseif (character == menuController.vLocName or character == menuController.johnnyLocName) and appearance == 'None' then
+        appearanceMenuItem.OptionLabelRef:SetText(menuController.currentAppearance)
+        appearanceMenuItem.OptionSelector.index = menuController.currentIndex
+    end
+end
+
 -- Initialization --
 
 local function CheckDependencies()
@@ -249,37 +259,29 @@ local function SetupObservers()
     end)
 
     Observe("gameuiPhotoModeMenuController", "OnAttributeUpdated", function(this, attributeKey, attributeValue, doApply)
-        if attributeKey == menuController.characterAttribute then
-            local charactermenuItem = this:GetMenuItem(menuController.characterAttribute)
-            local character = charactermenuItem.OptionLabelRef:GetText()
-            local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
-            local appearance = appearanceMenuItem.OptionLabelRef:GetText()
+        local charactermenuItem = this:GetMenuItem(menuController.characterAttribute)
+        local character = charactermenuItem.OptionLabelRef:GetText()
+        local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
+        local appearance = appearanceMenuItem.OptionLabelRef:GetText()
+        local visibleMenuItem = this:GetMenuItem(menuController.visibleAttribute)
+        local visibleMenuIndex = visibleMenuItem.OptionSelector.index
 
-            if character == menuController.nibblesLocName then
-                appearanceMenuItem.OptionLabelRef:SetText('None')
-                appearanceMenuItem.OptionSelector.index = 0
-            elseif (character == menuController.vLocName or character == menuController.johnnyLocName) and appearance == 'None' then
-                appearanceMenuItem.OptionLabelRef:SetText(menuController.currentAppearance)
-                appearanceMenuItem.OptionSelector.index = menuController.currentIndex
-            end
+        if attributeKey == menuController.characterAttribute then
+            RestrictAppearanceMenuItem(character, appearanceMenuItem, appearance)
         end
         if attributeKey == menuController.appearanceAttribute then
-            local charactermenuItem = this:GetMenuItem(menuController.characterAttribute)
-            local character = charactermenuItem.OptionLabelRef:GetText()
-            local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
-            local appearance = appearanceMenuItem.OptionLabelRef:GetText()
-
-            if character ~= menuController.nibblesLocName and appearance ~= 'Default' then
+            -- If 'Character' isn't Nibbles or default V and if 'Character Visible' is set to 'On' for V
+            if character ~= menuController.nibblesLocName and appearance ~= 'Default' and visibleMenuIndex == 1 then
                 local unused, entity = LocatePlayerPuppet()
                 ChangeAppearance(entity, appearance)
                 menuController.currentAppearance = appearance
                 menuController.currentIndex = appearanceMenuItem.OptionSelector.index
-            elseif character == menuController.nibblesLocName then
-                appearanceMenuItem.OptionLabelRef:SetText('None')
-                appearanceMenuItem.OptionSelector.index = 0
-            elseif (character == menuController.vLocName or menuController.johnnyLocName) and appearance == 'None' then
+            -- Prevent appearance options from changing when 'Character Visible' is set to 'Off' for V
+            elseif character ~= menuController.nibblesLocName and visibleMenuIndex == 0 then
                 appearanceMenuItem.OptionLabelRef:SetText(menuController.currentAppearance)
                 appearanceMenuItem.OptionSelector.index = menuController.currentIndex
+            else
+                RestrictAppearanceMenuItem(character, appearanceMenuItem, appearance)
             end 
         end
     end)
