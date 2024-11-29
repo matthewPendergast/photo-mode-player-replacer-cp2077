@@ -24,7 +24,6 @@ local vDefaultAppearances = {}
 local jDefaultAppearances = {}
 local parsedTable = {}
 local appearanceTable = {}
-local gameuiPMMC = nil
 
 -- Native UI --
 local menuController = {
@@ -33,10 +32,10 @@ local menuController = {
         pose = 2,
     },
     menuItem = {
-        character = 38,
-        characterVisible = 27,
-        replacer = 9000,
-        replacerAppearance = 9001,
+        characterAttribute = 38,
+        characterVisibleAttribute = 27,
+        replacerAttribute = 9000,
+        replacerAppearanceAttribute = 9001,
         replacerLabel = 'REPLACER CHARACTER',
         appearanceLabel = 'REPLACER APPEARANCE',
     },
@@ -135,20 +134,14 @@ local function LocatePlayerPuppet()
 end
 
 ---@param this gameuiPhotoModeMenuController
-local function SetupPMControllerVariables(this)
-    local charactermenuItem = this:GetMenuItem(menuController.menuItem.character)
-    local headerMenuItem = this:GetMenuItem(menuController.menuItem.replacer)
-    local appearanceMenuItem = this:GetMenuItem(menuController.menuItem.replacerAppearance)
-    local visibleMenuItem = this:GetMenuItem(menuController.menuItem.characterVisible)
+local function UpdateMenuControllerItems(this)
+    local charactermenuItem = this:GetMenuItem(menuController.menuItem.characterAttribute)
 
-    local gameuiPMMC = {
-        character = charactermenuItem.OptionLabelRef:GetText(),
-        headerMenuItem = headerMenuItem,
-        appearanceMenuItem = appearanceMenuItem,
-        visibleMenuItem = visibleMenuItem,
-        visibleMenuIndex = visibleMenuItem.OptionSelector.index,
-    }
-    return gameuiPMMC
+    menuController.character = charactermenuItem.OptionLabelRef:GetText()
+    menuController.headerMenuItem = this:GetMenuItem(menuController.menuItem.replacerAttribute)
+    menuController.appearanceMenuItem = this:GetMenuItem(menuController.menuItem.replacerAppearanceAttribute)
+    menuController.visibleMenuItem = this:GetMenuItem(menuController.menuItem.characterVisibleAttribute)
+    menuController.visibleMenuIndex = menuController.visibleMenuItem.OptionSelector.index
 end
 
 ---@param character string
@@ -192,6 +185,11 @@ local function ResetMenuControllerData()
     for key in pairs(menuController.data) do
         menuController.data[key] = nil
     end
+    menuController.character = nil
+    menuController.headerMenuItem = nil
+    menuController.appearanceMenuItem = nil
+    menuController.visibleMenuItem = nil
+    menuController.visibleMenuIndex = nil
     menuController.list.parsedApps = {}
     menuController.list.unparsedApps = {}
     menuController.initialized = false
@@ -320,16 +318,16 @@ local function SetupObservers()
 
     Override("gameuiPhotoModeMenuController", "AddMenuItem", function(this, label, attributeKey, page, isAdditional, wrappedMethod)
         wrappedMethod(label, attributeKey, page, isAdditional)
-        if page == menuController.menuPage.pose and attributeKey == menuController.menuItem.characterVisible then
-            this:AddMenuItem(menuController.menuItem.replacerLabel, menuController.menuItem.replacer, page, false)
-            this:AddMenuItem(menuController.menuItem.appearanceLabel, menuController.menuItem.replacerAppearance, page, false)
+        if page == menuController.menuPage.pose and attributeKey == menuController.menuItem.characterVisibleAttribute then
+            this:AddMenuItem(menuController.menuItem.replacerLabel, menuController.menuItem.replacerAttribute, page, false)
+            this:AddMenuItem(menuController.menuItem.appearanceLabel, menuController.menuItem.replacerAppearanceAttribute, page, false)
         end
     end)
 
     Observe("gameuiPhotoModeMenuController", "OnShow", function(this, reversedUI)
-        local headerMenuItem = this:GetMenuItem(menuController.menuItem.replacer)
-        local appearanceMenuItem = this:GetMenuItem(menuController.menuItem.replacerAppearance)
-        local charactermenuItem = this:GetMenuItem(menuController.menuItem.character)
+        local headerMenuItem = this:GetMenuItem(menuController.menuItem.replacerAttribute)
+        local appearanceMenuItem = this:GetMenuItem(menuController.menuItem.replacerAppearanceAttribute)
+        local charactermenuItem = this:GetMenuItem(menuController.menuItem.characterAttribute)
         local character = charactermenuItem.OptionLabelRef:GetText()
         local headerIndex = 0
         local appIndex = 0
@@ -413,20 +411,20 @@ local function SetupObservers()
         if  menuController.initialized then
 
             -- If character attribute is updated
-            if attributeKey == menuController.menuItem.character then
-                gameuiPMMC = SetupPMControllerVariables(this)
-                RestrictAppearanceMenuItems(gameuiPMMC.character, gameuiPMMC.headerMenuItem, gameuiPMMC.appearanceMenuItem)
+            if attributeKey == menuController.menuItem.characterAttribute then
+                UpdateMenuControllerItems(this)
+                RestrictAppearanceMenuItems(menuController.character, menuController.headerMenuItem, menuController.appearanceMenuItem)
             end
 
             -- If header attribute is updated
-            if attributeKey == menuController.menuItem.replacer then
-                gameuiPMMC = SetupPMControllerVariables(this)
+            if attributeKey == menuController.menuItem.replacerAttribute then
+                UpdateMenuControllerItems(this)
 
                 -- Prevent header options from changing in Nibbles options, when 'Character Visible' is set to 'Off' for V/Johnny, or when there is only one header value
-                if gameuiPMMC.character == menuController.locName.nibbles or gameuiPMMC.visibleMenuIndex == 0 or menuController.data.currHeaderCount == 1 then
-                    RestrictAppearanceMenuItems(gameuiPMMC.character, gameuiPMMC.headerMenuItem, gameuiPMMC.appearanceMenuItem)
+                if menuController.character == menuController.locName.nibbles or menuController.visibleMenuIndex == 0 or menuController.data.currHeaderCount == 1 then
+                    RestrictAppearanceMenuItems(menuController.character, menuController.headerMenuItem, menuController.appearanceMenuItem)
                 else
-                    local headerIndex = gameuiPMMC.headerMenuItem.OptionSelector.index + 1
+                    local headerIndex = menuController.headerMenuItem.OptionSelector.index + 1
                     local unused, entity = LocatePlayerPuppet()
                     -- Clear appearance data
                     menuController.list.parsedApps = {}
@@ -439,25 +437,25 @@ local function SetupObservers()
                     end
 
                     -- Update appearance menu item
-                    gameuiPMMC.appearanceMenuItem.OptionSelector.values = menuController.list.parsedApps
-                    gameuiPMMC.appearanceMenuItem.OptionSelector.index = 0
-                    gameuiPMMC.appearanceMenuItem.OptionLabelRef:SetText(menuController.list.parsedApps[1])
+                    menuController.appearanceMenuItem.OptionSelector.values = menuController.list.parsedApps
+                    menuController.appearanceMenuItem.OptionSelector.index = 0
+                    menuController.appearanceMenuItem.OptionLabelRef:SetText(menuController.list.parsedApps[1])
 
-                    UpdateMenuControllerData((headerIndex), 1, gameuiPMMC.headerMenuItem, gameuiPMMC.appearanceMenuItem)
+                    UpdateMenuControllerData((headerIndex), 1, menuController.headerMenuItem, menuController.appearanceMenuItem)
                     ChangeAppearance(entity, menuController.data.currUnparsedApp)
                 end
             end
 
             -- If appearance attribute is updated
-            if attributeKey == menuController.menuItem.replacerAppearance then
-                gameuiPMMC = SetupPMControllerVariables(this)
+            if attributeKey == menuController.menuItem.replacerAppearanceAttribute then
+                UpdateMenuControllerItems(this)
 
                 -- Prevent appearance options from changing in Nibbles options, when 'Character Visible' is set to 'Off' for V/Johnny, or when there is only one header value
-                if gameuiPMMC.character == menuController.locName.nibbles or gameuiPMMC.visibleMenuIndex == 0 or menuController.data.currAppCount == 1 then
-                    RestrictAppearanceMenuItems(gameuiPMMC.character, gameuiPMMC.headerMenuItem, gameuiPMMC.appearanceMenuItem)
+                if menuController.character == menuController.locName.nibbles or menuController.visibleMenuIndex == 0 or menuController.data.currAppCount == 1 then
+                    RestrictAppearanceMenuItems(menuController.character, menuController.headerMenuItem, menuController.appearanceMenuItem)
                 else
                     local unused, entity = LocatePlayerPuppet()
-                    UpdateMenuControllerData(nil, gameuiPMMC.appearanceMenuItem.OptionSelector.index + 1, nil, gameuiPMMC.appearanceMenuItem)
+                    UpdateMenuControllerData(nil, menuController.appearanceMenuItem.OptionSelector.index + 1, nil, menuController.appearanceMenuItem)
                     ChangeAppearance(entity, menuController.data.currUnparsedApp)
                 end
             end
