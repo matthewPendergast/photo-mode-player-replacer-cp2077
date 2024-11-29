@@ -26,28 +26,38 @@ local parsedTable = {}
 local appearanceTable = {}
 local gameuiPMMC = nil
 
+-- Native UI --
 local menuController = {
     initialized = false,
-    posePage = 2,
-    characterAttribute = 38,
-    visibleAttribute = 27,
-    headerAttribute = 9000,
-    appearanceAttribute = 9001,
-    headerMenuItemLabel = 'REPLACER CHARACTER',
-    appearanceMenuItemLabel = 'REPLACER APPEARANCE',
-    isDefaultAppearance = true,
-    vLocName = nil,
-    johnnyLocName = nil,
-    nibblesLocName = nil,
-    currHeaderIndex = nil,
-    currAppIndex = nil,
-    currHeaderCount = nil,
-    currAppCount = nil,
-    currHeader = nil,
-    currParsedApp = nil,
-    currUnparsedApp = nil,
-    parsedApps = {},
-    unparsedApps = {},
+    menuPage = {
+        pose = 2,
+    },
+    menuItem = {
+        character = 38,
+        characterVisible = 27,
+        replacer = 9000,
+        replacerAppearance = 9001,
+        replacerLabel = 'REPLACER CHARACTER',
+        appearanceLabel = 'REPLACER APPEARANCE',
+    },
+    locName = {
+        v = nil,
+        johnny = nil,
+        nibbles = nil,
+    },
+    data = {
+        currHeaderIndex = nil,
+        currAppIndex = nil,
+        currHeaderCount = nil,
+        currAppCount = nil,
+        currHeader = nil,
+        currParsedApp = nil,
+        currUnparsedApp = nil,
+    },
+    list = {
+        parsedApps = {},
+        unparsedApps = {},
+    },
 }
 
 -- Accessors --
@@ -75,6 +85,7 @@ end
 
 -- Error Handling --
 
+---@param message string
 local function HandleError(message)
     PMPR.modules.interface.NotifyError(message)
     spdlog.info('[Photo Mode Player Replacer] Error: ' .. message)
@@ -82,6 +93,8 @@ end
 
 -- Core Logic --
 
+---@param entity userData
+---@param appearance string (valid appearanceName)
 local function ChangeAppearance(entity, appearance)
     if appearance ~= nil then
         entity:PrefetchAppearanceChange(appearance)
@@ -89,6 +102,8 @@ local function ChangeAppearance(entity, appearance)
     end
 end
 
+---@param character string ('V' or 'Johnny')
+---@param entity userData
 local function SetDefaultAppearance(character, entity)
     local appearance
     if character == 'V' then
@@ -119,11 +134,12 @@ local function LocatePlayerPuppet()
     end
 end
 
+---@param this gameuiPhotoModeMenuController
 local function SetupPMControllerVariables(this)
-    local charactermenuItem = this:GetMenuItem(menuController.characterAttribute)
-    local headerMenuItem = this:GetMenuItem(menuController.headerAttribute)
-    local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
-    local visibleMenuItem = this:GetMenuItem(menuController.visibleAttribute)
+    local charactermenuItem = this:GetMenuItem(menuController.menuItem.character)
+    local headerMenuItem = this:GetMenuItem(menuController.menuItem.replacer)
+    local appearanceMenuItem = this:GetMenuItem(menuController.menuItem.replacerAppearance)
+    local visibleMenuItem = this:GetMenuItem(menuController.menuItem.characterVisible)
 
     local gameuiPMMC = {
         character = charactermenuItem.OptionLabelRef:GetText(),
@@ -135,23 +151,50 @@ local function SetupPMControllerVariables(this)
     return gameuiPMMC
 end
 
+---@param character string
+---@param headerMenuItem PhotoModeMenuListItem
+---@param appearanceMenuItem PhotoModeMenuListItem
 local function RestrictAppearanceMenuItems(character, headerMenuItem, appearanceMenuItem)
     -- If Nibbles is selected, disable menu items
-    if character == menuController.nibblesLocName then
+    if character == menuController.locName.nibbles then
         headerMenuItem.OptionLabelRef:SetText('-')
         headerMenuItem.OptionSelector.index = 0
         appearanceMenuItem.OptionLabelRef:SetText('-')
         appearanceMenuItem.OptionSelector.index = 0
     -- If default Johnny is selected
-    elseif character == menuController.johnnyLocName and PMPR.GetJEntity() == 1 then
-        appearanceMenuItem.OptionLabelRef:SetText(menuController.currParsedApp)
-        appearanceMenuItem.OptionSelector.index = menuController.currAppIndex + 1
+    elseif character == menuController.locName.johnny and PMPR.GetJEntity() == 1 then
+        appearanceMenuItem.OptionLabelRef:SetText(menuController.data.currParsedApp)
+        appearanceMenuItem.OptionSelector.index = menuController.data.currAppIndex + 1
     else
-        headerMenuItem.OptionLabelRef:SetText(menuController.currHeader)
-        headerMenuItem.OptionSelector.index = menuController.currHeaderIndex
-        appearanceMenuItem.OptionLabelRef:SetText(menuController.currParsedApp)
-        appearanceMenuItem.OptionSelector.index = menuController.currAppIndex
+        headerMenuItem.OptionLabelRef:SetText(menuController.data.currHeader)
+        headerMenuItem.OptionSelector.index = menuController.data.currHeaderIndex - 1
+        appearanceMenuItem.OptionLabelRef:SetText(menuController.data.currParsedApp)
+        appearanceMenuItem.OptionSelector.index = menuController.data.currAppIndex
     end
+end
+
+---@param headerIndex integer|nil
+---@param appIndex integer|nil
+---@param headerMenuItem PhotoModeMenuListItem|nil
+---@param appearanceMenuItem PhotoModeMenuListItem|nil
+local function UpdateMenuControllerData(headerIndex, appIndex, headerMenuItem, appearanceMenuItem)
+    -- Will use current values if not being updated
+    menuController.data.currHeaderIndex = headerIndex or menuController.data.currHeaderIndex
+    menuController.data.currAppIndex = appIndex or menuController.data.currAppIndex
+    menuController.data.currHeaderCount = headerMenuItem and headerMenuItem.OptionSelector:GetValuesCount() or menuController.data.currHeaderCount
+    menuController.data.currAppCount = appearanceMenuItem and appearanceMenuItem.OptionSelector:GetValuesCount() or menuController.data.currAppCount
+    menuController.data.currHeader = headerIndex and appearanceTable.headers[headerIndex] or menuController.data.currHeader
+    menuController.data.currParsedApp = appIndex and menuController.list.parsedApps[appIndex] or menuController.data.currParsedApp
+    menuController.data.currUnparsedApp = appIndex and menuController.list.unparsedApps[appIndex] or menuController.data.currUnparsedApp
+end
+
+local function ResetMenuControllerData()
+    for key in pairs(menuController.data) do
+        menuController.data[key] = nil
+    end
+    menuController.list.parsedApps = {}
+    menuController.list.unparsedApps = {}
+    menuController.initialized = false
 end
 
 -- Initialization --
@@ -236,16 +279,16 @@ end
 
 function SetupLocalization()
     local record = PMPR.modules.data.defaultLocNames
-    menuController.vLocName = PMPR.modules.properties.locNames.V
-    menuController.johnnyLocName = PMPR.modules.properties.locNames.Johnny
-    menuController.nibblesLocName = TweakDB:GetFlat(record)[3]
+    menuController.locName.v = PMPR.modules.properties.locNames.V
+    menuController.locName.johnny = PMPR.modules.properties.locNames.Johnny
+    menuController.locName.nibbles = TweakDB:GetFlat(record)[3]
 
     -- If Nibbles Replacer exists, change naming convention to match this mod; else use default localized name
     if NibblesToNPCs then
-        menuController.nibblesLocName = PMPR.modules.properties.locNames.Nibbles
+        menuController.locName.nibbles = PMPR.modules.properties.locNames.Nibbles
     end
 
-    TweakDB:SetFlat(record, {menuController.vLocName, menuController.johnnyLocName, menuController.nibblesLocName})
+    TweakDB:SetFlat(record, {menuController.locName.v, menuController.locName.johnny, menuController.locName.nibbles})
 end
 
 local function SetupObservers()
@@ -261,7 +304,6 @@ local function SetupObservers()
             -- Resets the condition for updating default appearance if user doesn't change replacers before reopening photo mode
             if not isPhotoModeActive and not PMPR.IsDefaultAppearance() then
                 PMPR.ToggleDefaultAppearance(true)
-                menuController.isDefaultAppearance = true
             end
         end
         -- Presently needs the extra callbacks to work as intended
@@ -271,28 +313,23 @@ local function SetupObservers()
                 SetDefaultAppearance(character, entity)
             end
         end
-        if not isPhotoModeActive then
-            menuController.currHeaderIndex = nil
-            menuController.currAppIndex = nil
-            menuController.currHeader = nil
-            menuController.parsedApps = {}
-            menuController.unparsedApps = {}
-            menuController.initialized = false
+        if not isPhotoModeActive and menuController.initialized then
+            ResetMenuControllerData()
         end
     end)
 
     Override("gameuiPhotoModeMenuController", "AddMenuItem", function(this, label, attributeKey, page, isAdditional, wrappedMethod)
         wrappedMethod(label, attributeKey, page, isAdditional)
-        if page == menuController.posePage and attributeKey == menuController.visibleAttribute then
-            this:AddMenuItem(menuController.headerMenuItemLabel, menuController.headerAttribute, page, false)
-            this:AddMenuItem(menuController.appearanceMenuItemLabel, menuController.appearanceAttribute, page, false)
+        if page == menuController.menuPage.pose and attributeKey == menuController.menuItem.characterVisible then
+            this:AddMenuItem(menuController.menuItem.replacerLabel, menuController.menuItem.replacer, page, false)
+            this:AddMenuItem(menuController.menuItem.appearanceLabel, menuController.menuItem.replacerAppearance, page, false)
         end
     end)
 
     Observe("gameuiPhotoModeMenuController", "OnShow", function(this, reversedUI)
-        local headerMenuItem = this:GetMenuItem(menuController.headerAttribute)
-        local appearanceMenuItem = this:GetMenuItem(menuController.appearanceAttribute)
-        local charactermenuItem = this:GetMenuItem(menuController.characterAttribute)
+        local headerMenuItem = this:GetMenuItem(menuController.menuItem.replacer)
+        local appearanceMenuItem = this:GetMenuItem(menuController.menuItem.replacerAppearance)
+        local charactermenuItem = this:GetMenuItem(menuController.menuItem.character)
         local character = charactermenuItem.OptionLabelRef:GetText()
         local headerIndex = 0
         local appIndex = 0
@@ -309,7 +346,7 @@ local function SetupObservers()
         appearanceMenuItem.photoModeController = this
 
         -- Get base character (V or Johnny) based on the 'Character' menu name and get parsed table
-        if character == menuController.vLocName then
+        if character == menuController.locName.v then
             entIndex = PMPR.GetVEntity()
             if entIndex == 1 then
                 appearanceTable = {headers = {'-'}, data = {['-'] = {{parsed = '-', unparsed = '-'}}}}
@@ -318,7 +355,7 @@ local function SetupObservers()
             else
                 defaultAppearance = PMPR.modules.properties.defAppsV[PMPR.GetVEntity()].appearanceName
             end
-        elseif character == menuController.johnnyLocName then
+        elseif character == menuController.locName.johnny then
             entIndex = PMPR.GetJEntity()
             -- Set to Johnny's appearances list if Default option selected
             if entIndex == 1 then
@@ -354,8 +391,8 @@ local function SetupObservers()
 
         -- Populate appearance data
         for _, appearanceData in ipairs(appearanceTable.data[appearanceTable.headers[headerIndex]]) do
-            table.insert(menuController.parsedApps, appearanceData.parsed)
-            table.insert(menuController.unparsedApps, appearanceData.unparsed)
+            table.insert(menuController.list.parsedApps, appearanceData.parsed)
+            table.insert(menuController.list.unparsedApps, appearanceData.unparsed)
         end
 
         -- Setup header menu item
@@ -365,17 +402,10 @@ local function SetupObservers()
 
         -- Setup appearance menu item
         appearanceMenuItem.OptionSelector.index = appIndex - 1
-        appearanceMenuItem.OptionLabelRef:SetText(menuController.parsedApps[appIndex])
-        appearanceMenuItem.OptionSelector.values = menuController.parsedApps
+        appearanceMenuItem.OptionLabelRef:SetText(menuController.list.parsedApps[appIndex])
+        appearanceMenuItem.OptionSelector.values = menuController.list.parsedApps
 
-        -- Setup persistent data
-        menuController.currHeaderIndex = headerIndex
-        menuController.currAppIndex = appIndex
-        menuController.currHeaderCount = headerMenuItem.OptionSelector:GetValuesCount()
-        menuController.currAppCount = appearanceMenuItem.OptionSelector:GetValuesCount()
-        menuController.currHeader = appearanceTable.headers[headerIndex]
-        menuController.currParsedApp = menuController.parsedApps[appIndex]
-        menuController.currUnparsedApp = menuController.unparsedApps[appIndex]
+        UpdateMenuControllerData(headerIndex, appIndex, headerMenuItem, appearanceMenuItem)
         menuController.initialized = true
     end)
 
@@ -383,65 +413,52 @@ local function SetupObservers()
         if  menuController.initialized then
 
             -- If character attribute is updated
-            if attributeKey == menuController.characterAttribute then
+            if attributeKey == menuController.menuItem.character then
                 gameuiPMMC = SetupPMControllerVariables(this)
                 RestrictAppearanceMenuItems(gameuiPMMC.character, gameuiPMMC.headerMenuItem, gameuiPMMC.appearanceMenuItem)
             end
 
             -- If header attribute is updated
-            if attributeKey == menuController.headerAttribute then
+            if attributeKey == menuController.menuItem.replacer then
                 gameuiPMMC = SetupPMControllerVariables(this)
 
                 -- Prevent header options from changing in Nibbles options, when 'Character Visible' is set to 'Off' for V/Johnny, or when there is only one header value
-                if gameuiPMMC.character == menuController.nibblesLocName or gameuiPMMC.visibleMenuIndex == 0 or menuController.currHeaderCount == 1 then
+                if gameuiPMMC.character == menuController.locName.nibbles or gameuiPMMC.visibleMenuIndex == 0 or menuController.data.currHeaderCount == 1 then
                     RestrictAppearanceMenuItems(gameuiPMMC.character, gameuiPMMC.headerMenuItem, gameuiPMMC.appearanceMenuItem)
                 else
                     local headerIndex = gameuiPMMC.headerMenuItem.OptionSelector.index + 1
                     local unused, entity = LocatePlayerPuppet()
                     -- Clear appearance data
-                    menuController.parsedApps = {}
-                    menuController.unparsedApps = {}
+                    menuController.list.parsedApps = {}
+                    menuController.list.unparsedApps = {}
 
                     -- Repopulate appearance data
                     for _, appearanceData in ipairs(appearanceTable.data[appearanceTable.headers[headerIndex]]) do
-                        table.insert(menuController.parsedApps, appearanceData.parsed)
-                        table.insert(menuController.unparsedApps, appearanceData.unparsed)
+                        table.insert(menuController.list.parsedApps, appearanceData.parsed)
+                        table.insert(menuController.list.unparsedApps, appearanceData.unparsed)
                     end
 
                     -- Update appearance menu item
-                    gameuiPMMC.appearanceMenuItem.OptionSelector.values = menuController.parsedApps
+                    gameuiPMMC.appearanceMenuItem.OptionSelector.values = menuController.list.parsedApps
                     gameuiPMMC.appearanceMenuItem.OptionSelector.index = 0
-                    gameuiPMMC.appearanceMenuItem.OptionLabelRef:SetText(menuController.parsedApps[1])
+                    gameuiPMMC.appearanceMenuItem.OptionLabelRef:SetText(menuController.list.parsedApps[1])
 
-                    -- Update persistent data
-                    menuController.currHeaderIndex = headerIndex - 1
-                    menuController.currAppIndex = 1
-                    menuController.currHeaderCount = gameuiPMMC.headerMenuItem.OptionSelector:GetValuesCount()
-                    menuController.currAppCount = gameuiPMMC.appearanceMenuItem.OptionSelector:GetValuesCount()
-                    menuController.currHeader = appearanceTable.headers[headerIndex]
-                    menuController.currParsedApp = menuController.parsedApps[menuController.currAppIndex]
-                    menuController.currUnparsedApp = menuController.unparsedApps[menuController.currAppIndex]
-
-                    ChangeAppearance(entity, menuController.currUnparsedApp)
+                    UpdateMenuControllerData((headerIndex), 1, gameuiPMMC.headerMenuItem, gameuiPMMC.appearanceMenuItem)
+                    ChangeAppearance(entity, menuController.data.currUnparsedApp)
                 end
             end
 
             -- If appearance attribute is updated
-            if attributeKey == menuController.appearanceAttribute then
+            if attributeKey == menuController.menuItem.replacerAppearance then
                 gameuiPMMC = SetupPMControllerVariables(this)
 
                 -- Prevent appearance options from changing in Nibbles options, when 'Character Visible' is set to 'Off' for V/Johnny, or when there is only one header value
-                if gameuiPMMC.character == menuController.nibblesLocName or gameuiPMMC.visibleMenuIndex == 0 or menuController.currAppCount == 1 then
+                if gameuiPMMC.character == menuController.locName.nibbles or gameuiPMMC.visibleMenuIndex == 0 or menuController.data.currAppCount == 1 then
                     RestrictAppearanceMenuItems(gameuiPMMC.character, gameuiPMMC.headerMenuItem, gameuiPMMC.appearanceMenuItem)
                 else
                     local unused, entity = LocatePlayerPuppet()
-
-                    -- Update persistent data
-                    menuController.currAppIndex = gameuiPMMC.appearanceMenuItem.OptionSelector.index + 1
-                    menuController.currParsedApp = menuController.parsedApps[menuController.currAppIndex]
-                    menuController.currUnparsedApp = menuController.unparsedApps[menuController.currAppIndex]
-
-                    ChangeAppearance(entity, menuController.currUnparsedApp)
+                    UpdateMenuControllerData(nil, gameuiPMMC.appearanceMenuItem.OptionSelector.index + 1, nil, gameuiPMMC.appearanceMenuItem)
+                    ChangeAppearance(entity, menuController.data.currUnparsedApp)
                 end
             end
         end
@@ -450,7 +467,7 @@ end
 
 registerForEvent('onTweak', SetupLocalization)
 
-registerForEvent('onInit', function ()
+registerForEvent('onInit', function()
     CheckDependencies()
     Initialize()
     ParseAppearanceLists()

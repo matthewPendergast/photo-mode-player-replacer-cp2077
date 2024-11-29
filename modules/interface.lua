@@ -31,6 +31,7 @@ local defaultEntity = nil
 
 -- Accessors --
 
+---@param message string
 function interface.SetNotificationMessage(message)
     interface.notificationMessage = message
 end
@@ -53,6 +54,7 @@ end
 
 -- Error Handling --
 
+---@param message string
 function interface.NotifyError(message)
     local errorType, errorMessage = message:match("^(.-)( %-.*)$")
     -- Clear initializing notification but retain prior error messages
@@ -66,6 +68,7 @@ end
 
 -- Initialization --
 
+---@param data table (data.lua)
 function interface.Initialize(data)
     -- Pull values from data module
     interface.characterTypes = data.characterTypes
@@ -110,6 +113,8 @@ function interface.SetupDefaultV()
     interface.SetPuppetTable(1, 'V')
 end
 
+---@param index integer (1-11)
+---@param character string ('V' or 'Johnny')
 function interface.SetPuppetTable(index, character)
     if character == 'V' then
         for i, entry in ipairs(interface.puppetTable) do
