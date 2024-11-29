@@ -2,7 +2,6 @@
 db.sqlite3
 modules/data.lua
 modules/debug.lua
-modules/hooks.lua
 roadmap.txt
 external/
 LICENSE.txt
