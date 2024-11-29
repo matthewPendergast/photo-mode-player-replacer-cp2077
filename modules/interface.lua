@@ -184,7 +184,7 @@ function interface.DrawUI()
     -- Pre-load
     if not interface.initialized or interface.errorOccurred or user.isLoadingSaveFile or user.isInPhotoMode then
         ImGui.TextColored(0.5, 0.5, 0.5, 1, interface.notificationArea)
-        interface.notificationMessage = ImGui.InputTextMultiline("##InputTextMultiline9", interface.notificationMessage, 330, -1, interface.statusFeedLines * ImGui.GetTextLineHeight())
+        interface.notificationMessage = ImGui.InputTextMultiline("##InputTextMultiline", interface.notificationMessage, 330, -1, interface.statusFeedLines * ImGui.GetTextLineHeight())
     -- Post-load
     elseif interface.initialized and not interface.errorOccurred then
         if ImGui.BeginTabBar('##TabBar') then

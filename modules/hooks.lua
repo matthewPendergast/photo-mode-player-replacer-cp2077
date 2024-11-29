@@ -40,6 +40,7 @@ local currEntity = {
     v = 1,
     j = 1,
 }
+local currID = nil
 
 function hooks.SetParsedTable(table)
     parsedTable = table
@@ -135,11 +136,12 @@ function hooks.SetupObservers(PMPR)
                 PMPR.ToggleDefaultAppearance(true)
             end
         end
-        -- Presently needs the extra callbacks to work as intended
-        if isPhotoModeActive and PMPR.IsDefaultAppearance() then
-            local character, entity = PMPR.LocatePlayerPuppet()
-            if character and entity then
-                PMPR.SetDefaultAppearance(character, entity)
+        -- Needs reworked once a better Observer function is found for V's photo mode entity initialization
+        if isPhotoModeActive and PMPR.IsDefaultAppearance() and currID and menuController.data.currUnparsedApp then
+            local entity = PMPR.modules.util.LocatePlayerPuppet(currID)
+            if entity then
+                PMPR.modules.util.ChangeAppearance(entity, menuController.data.currUnparsedApp)
+                PMPR.ToggleDefaultAppearance(false)
             end
         end
         if not isPhotoModeActive and menuController.initialized then
@@ -162,10 +164,7 @@ function hooks.SetupObservers(PMPR)
         local character = charactermenuItem.OptionLabelRef:GetText()
         local headerIndex = 0
         local appIndex = 0
-        local defaultAppearance, entIndex
-
-        -- Update user settings
-        SetCurrEntity(PMPR.GetVEntity(), PMPR.GetJEntity())
+        local defaultAppearance, entIndex, idIndex
 
         -- Initialize menu item values
         headerMenuItem.GridRoot:SetVisible(false)
@@ -177,18 +176,24 @@ function hooks.SetupObservers(PMPR)
         appearanceMenuItem.OptionSelector:Clear()
         appearanceMenuItem.photoModeController = this
 
+        -- Prepare entity values
+        SetCurrEntity(PMPR.GetVEntity(), PMPR.GetJEntity())
+
         -- Get base character (V or Johnny) based on the 'Character' menu name and get parsed table
         if character == menuController.locName.v then
             entIndex = currEntity.v
+            idIndex = 1
             if entIndex == 1 then
                 appearanceTable = {headers = {'-'}, data = {['-'] = {{parsed = '-', unparsed = '-'}}}}
                 headerIndex = 1
                 appIndex = 1
+                PMPR.ToggleDefaultAppearance(false)
             else
                 defaultAppearance = PMPR.modules.properties.defAppsV[currEntity.v].appearanceName
             end
         elseif character == menuController.locName.johnny then
             entIndex = currEntity.j
+            idIndex = 2
             -- Set to Johnny's appearances list if Default option selected
             if entIndex == 1 then
                 entIndex = 11
@@ -196,6 +201,9 @@ function hooks.SetupObservers(PMPR)
             end
             defaultAppearance = PMPR.modules.properties.defAppsJ[currEntity.j].appearanceName
         end
+
+        -- Set persistent target ID data
+        currID = PMPR.GetEntityID(idIndex)
         
         -- Populate appearance table for selected entity if not default photo mode V
         if entIndex ~= 1 then
@@ -260,7 +268,7 @@ function hooks.SetupObservers(PMPR)
                     RestrictAppearanceMenuItems(menuController.character, menuController.headerMenuItem, menuController.appearanceMenuItem)
                 else
                     local headerIndex = menuController.headerMenuItem.OptionSelector.index + 1
-                    local unused, entity = PMPR.LocatePlayerPuppet()
+                    local entity = PMPR.modules.util.LocatePlayerPuppet(currID)
                     -- Clear appearance data
                     menuController.list.parsedApps = {}
                     menuController.list.unparsedApps = {}
@@ -277,7 +285,7 @@ function hooks.SetupObservers(PMPR)
                     menuController.appearanceMenuItem.OptionLabelRef:SetText(menuController.list.parsedApps[1])
 
                     UpdateMenuControllerData((headerIndex), 1, menuController.headerMenuItem, menuController.appearanceMenuItem)
-                    PMPR.ChangeAppearance(entity, menuController.data.currUnparsedApp)
+                    PMPR.modules.util.ChangeAppearance(entity, menuController.data.currUnparsedApp)
                 end
             end
 
@@ -289,9 +297,9 @@ function hooks.SetupObservers(PMPR)
                 if menuController.character == menuController.locName.nibbles or menuController.visibleMenuIndex == 0 or menuController.data.currAppCount == 1 then
                     RestrictAppearanceMenuItems(menuController.character, menuController.headerMenuItem, menuController.appearanceMenuItem)
                 else
-                    local unused, entity = PMPR.LocatePlayerPuppet()
+                    local entity = PMPR.modules.util.LocatePlayerPuppet(currID)
                     UpdateMenuControllerData(nil, menuController.appearanceMenuItem.OptionSelector.index + 1, nil, menuController.appearanceMenuItem)
-                    PMPR.ChangeAppearance(entity, menuController.data.currUnparsedApp)
+                    PMPR.modules.util.ChangeAppearance(entity, menuController.data.currUnparsedApp)
                 end
             end
         end
