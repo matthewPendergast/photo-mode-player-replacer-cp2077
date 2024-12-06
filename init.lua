@@ -8,6 +8,7 @@ local PMPR = {
         hooks = require('modules/hooks.lua'),
         interface = require('modules/interface.lua'),
         properties = require('properties.lua'),
+        settings = require('user/settings.lua'),
         util = require('modules/utility.lua'),
     },
 }
@@ -17,11 +18,11 @@ local isOverlayOpen = false
 -- Accessors --
 
 function PMPR.GetVEntity()
-    return PMPR.modules.interface.vEntity
+    return PMPR.modules.interface.GetVEntity()
 end
 
 function PMPR.GetJEntity()
-    return PMPR.modules.interface.jEntity
+    return PMPR.modules.interface.GetJEntity()
 end
 
 ---@param character string ('V' or 'Johnny')
@@ -34,11 +35,11 @@ function PMPR.GetEntityByCharacter(character)
 end
 
 function PMPR.IsDefaultAppearance()
-    return PMPR.modules.interface.isDefaultAppearance
+    return PMPR.modules.interface.IsDefaultAppearance()
 end
 
 function PMPR.ToggleDefaultAppearance(bool)
-    PMPR.modules.interface.isDefaultAppearance = bool
+    PMPR.modules.interface.ToggleDefaultAppearance(bool)
 end
 
 ---@param index integer (1-2)
@@ -80,13 +81,15 @@ local function ParseAppearanceLists()
     }
     local filePath = "external/appearances.lua"
     local parsedTable = {}
+    local parsedList = {}
 
     local requiredData = require(filePath)
     for index, group in ipairs(requiredData) do
         local groupedAppearances = {headers = {}, data = {}}
+        local parsedGroup = {} -- Initialize a new table for this group's parsed names
 
-        if index == 1 then
-            -- Handle the first table specially
+        if index == 11 then
+            -- Handle the last table specially
             table.insert(groupedAppearances.headers, group.headers)
             groupedAppearances.data[group.headers] = {
                 {parsed = group.parsed, unparsed = group.unparsed}
@@ -126,12 +129,23 @@ local function ParseAppearanceLists()
                         parsed = appearance,
                         unparsed = line
                     })
+
+                    -- Add the censored appearance to the parsedGroup
+                    local censoredLine = string.gsub(line, '(%w+)', function(word)
+                        for i, term in ipairs(censor.oldTerms) do
+                            word = string.gsub(word, term, censor.newTerms[i])
+                        end
+                        return word
+                    end)
+                    table.insert(parsedGroup, censoredLine)
                 end
             end
         end
         table.insert(parsedTable, groupedAppearances)
+        table.insert(parsedList, parsedGroup) -- Add the parsed group to the parsedList
     end
     PMPR.modules.hooks.SetParsedTable(parsedTable)
+    PMPR.modules.interface.SetAppearanceLists(parsedList)
 end
 
 
@@ -155,11 +169,12 @@ registerForEvent('onInit', function()
     ParseAppearanceLists()
 
     PMPR.modules.hooks.SetupObservers(PMPR)
+    PMPR.modules.interface.Initialize(PMPR.modules.data)
 
     PMPR.modules.gameSession.OnStart(function()
         -- Initialize interface
-        if not PMPR.modules.interface.initialized then
-            PMPR.modules.interface.Initialize(PMPR.modules.data)
+        if not PMPR.modules.interface.ready then
+            PMPR.modules.interface.PopulatePuppetTable(PMPR.modules.data)
         end
         -- Reset V default paths and switch interface to replacer options
         PMPR.modules.interface.SetupDefaultV()
@@ -190,4 +205,4 @@ registerForEvent('onDraw', function()
     end
 end)
 
-return PMPR
+return PMPRs

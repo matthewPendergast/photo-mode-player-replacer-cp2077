@@ -119,6 +119,7 @@ local function ResetMenuControllerData()
     menuController.list.parsedApps = {}
     menuController.list.unparsedApps = {}
     menuController.initialized = false
+    currID = nil
 end
 
 ---@param PMPR table
@@ -160,8 +161,8 @@ function hooks.SetupObservers(PMPR)
     Observe("gameuiPhotoModeMenuController", "OnShow", function(this, reversedUI)
         local headerMenuItem = this:GetMenuItem(menuController.menuItem.replacerAttribute)
         local appearanceMenuItem = this:GetMenuItem(menuController.menuItem.replacerAppearanceAttribute)
-        local charactermenuItem = this:GetMenuItem(menuController.menuItem.characterAttribute)
-        local character = charactermenuItem.OptionLabelRef:GetText()
+        local characterMenuItem = this:GetMenuItem(menuController.menuItem.characterAttribute)
+        local character = characterMenuItem.OptionLabelRef:GetText()
         local headerIndex = 0
         local appIndex = 0
         local defaultAppearance, entIndex, idIndex
@@ -189,17 +190,14 @@ function hooks.SetupObservers(PMPR)
                 appIndex = 1
                 PMPR.ToggleDefaultAppearance(false)
             else
-                defaultAppearance = PMPR.modules.properties.defAppsV[currEntity.v].appearanceName
+                --defaultAppearance = PMPR.modules.properties.defAppsV[currEntity.v].appearanceName
+                defaultAppearance = PMPR.modules.settings.defaultAppsV[currEntity.v]
             end
         elseif character == menuController.locName.johnny then
             entIndex = currEntity.j
             idIndex = 2
-            -- Set to Johnny's appearances list if Default option selected
-            if entIndex == 1 then
-                entIndex = 11
-                headerIndex = 11
-            end
-            defaultAppearance = PMPR.modules.properties.defAppsJ[currEntity.j].appearanceName
+            --defaultAppearance = PMPR.modules.properties.defAppsJ[currEntity.j].appearanceName
+            defaultAppearance = PMPR.modules.settings.defaultAppsJ[currEntity.j]
         end
 
         -- Set persistent target ID data
@@ -212,6 +210,16 @@ function hooks.SetupObservers(PMPR)
 
         -- Update UI for default appearance settings if not default photo mode V
         if defaultAppearance then
+            local censor = {
+                oldTerms = {'Chubby', 'Freak', 'Junkie', 'Lowlife', 'Prostitute', 'Redneck'},
+                newTerms = {'Curvy', 'Eccentric', 'Vagrant', 'Working Class', 'Sexworker', 'Rural'},
+            }
+            -- Convert appearanceName back to uncensored version
+            for i, newTerm in ipairs(censor.newTerms) do
+                if defaultAppearance:find(newTerm) then
+                    defaultAppearance = defaultAppearance:gsub(newTerm, censor.oldTerms[i])
+                end
+            end
             local found = false
             -- Search for replacer being set
             for h, replacer in ipairs(appearanceTable.headers) do
