@@ -83,10 +83,11 @@ local function ParseAppearanceLists()
     local parsedTable = {}
     local parsedList = {}
 
-    local requiredData = require(filePath)
+    local requiredData = dofile(filePath)
     for index, group in ipairs(requiredData) do
         local groupedAppearances = {headers = {}, data = {}}
         local parsedGroup = {} -- Initialize a new table for this group's parsed names
+        local counter = 1
 
         if index == 11 then
             -- Handle the last table specially
@@ -112,10 +113,12 @@ local function ParseAppearanceLists()
                     header = string.gsub(header, '_', ' ')
                     appearance = string.gsub(appearance, '_+', ' ')
 
-                    -- Change potentially offensive terms
-                    for i, term in ipairs(censor.oldTerms) do
-                        header = string.gsub(header, term, censor.newTerms[i])
-                        appearance = string.gsub(appearance, term, censor.newTerms[i])
+                    -- Change potentially offensive terms for NPC replacers only
+                    if index <= 4 then
+                        for i, term in ipairs(censor.oldTerms) do
+                            header = string.gsub(header, term, censor.newTerms[i])
+                            appearance = string.gsub(appearance, term, censor.newTerms[i])
+                        end 
                     end
 
                     -- Add header to headers list if it's new
@@ -124,12 +127,6 @@ local function ParseAppearanceLists()
                         table.insert(groupedAppearances.headers, header)
                     end
 
-                    -- Add appearance to the header's list
-                    table.insert(groupedAppearances.data[header], {
-                        parsed = appearance,
-                        unparsed = line
-                    })
-
                     -- Add the censored appearance to the parsedGroup
                     local censoredLine = string.gsub(line, '(%w+)', function(word)
                         for i, term in ipairs(censor.oldTerms) do
@@ -137,7 +134,20 @@ local function ParseAppearanceLists()
                         end
                         return word
                     end)
+                    
                     table.insert(parsedGroup, censoredLine)
+
+                    -- Convert custon NPV names back to valid appearanceNames
+                    if index > 4 then
+                        line = string.format('appearance_%02d', counter)
+                        counter = counter + 1
+                    end
+
+                    -- Add appearance to the header's list
+                    table.insert(groupedAppearances.data[header], {
+                        parsed = appearance,
+                        unparsed = line
+                    })
                 end
             end
         end
@@ -197,6 +207,14 @@ registerForEvent('onOverlayClose', function()
     isOverlayOpen = false
 end)
 
+registerForEvent('onUpdate', function ()
+    -- Update appearance lists for changes to NPV names
+    if PMPR.modules.interface.isAppearancesListUpdated == true then
+        ParseAppearanceLists()
+        PMPR.modules.interface.isAppearancesListUpdated = false
+    end
+end)
+
 registerForEvent('onDraw', function()
     if not isOverlayOpen then
         return
@@ -205,4 +223,4 @@ registerForEvent('onDraw', function()
     end
 end)
 
-return PMPRs
+return PMPR
