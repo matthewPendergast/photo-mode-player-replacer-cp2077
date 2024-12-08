@@ -1,7 +1,17 @@
 local interface = {
     ready = false,
-    errorOccurred = false,
-    isAppearancesListUpdated = false,
+    userSettings = require('user/settings.lua'),
+    options = {
+        vIndex = 1,
+        jIndex = 1,
+    },
+    state = {
+        errorOccurred = false,
+        isDefaultAppearance = false,
+        isAppearancesListUpdated = false,
+        isPhotoModeActive = false,
+        isGameLoadingSaveFile = false,
+    },
     modName = 'Photo Mode Player Replacer',
     menuA = 'Menu',
     menuItemA = 'Set Default Appearances',
@@ -11,27 +21,16 @@ local interface = {
     notificationMessage = 'Initializing... \n',
 }
 
-local user = {
-    isLoadingSaveFile = false,
-    isInPhotoMode = false,
-    settings = require('user/settings.lua'),
-}
-
 local replacer = {
-    vEntity = 1,
-    jEntity = 1,
-    isDefaultAppearance = false,
-    data = {
-        puppetTable = {},
-        characterTypes = {},
-        defaultPaths = {},
-        entityPaths = {},
-        defaultTemplate = nil,
-        defaultEntity = nil,
-        puppetTorsoRecord = nil,
-        puppetTorsoAppearance = nil,
-        appearanceLists = {}
-    }
+    puppetTable = {},
+    characterTypes = {},
+    defaultPaths = {},
+    entityPaths = {},
+    defaultTemplate = '',
+    defaultEntity = '',
+    puppetTorsoRecord = nil,
+    puppetTorsoAppearance = nil,
+    appearanceLists = {},
 }
 
 -- ImGui: Menu Bar --
@@ -73,6 +72,7 @@ local comboStateNPV = {
     [9] = 0,
     [10] = 0,
 }
+local isWarningChecked = false
 
 -- ImGui: Main Options --
 
@@ -86,40 +86,8 @@ function interface.SetNotificationMessage(message)
     interface.notificationMessage = message
 end
 
-function interface.IsLoadingSaveFile()
-    return user.isLoadingSaveFile
-end
-
-function interface.ToggleLoadingSaveFile(bool)
-    user.isLoadingSaveFile = bool
-end
-
-function interface.IsInPhotoMode()
-    return user.isInPhotoMode
-end
-
-function interface.ToggleInPhotoMode(bool)
-    user.isInPhotoMode = bool
-end
-
 function interface.SetAppearanceLists(table)
-    replacer.data.appearanceLists = table
-end
-
-function interface.GetVEntity()
-    return replacer.vEntity
-end
-
-function interface.GetJEntity()
-    return replacer.jEntity
-end
-
-function interface.IsDefaultAppearance()
-    return replacer.isDefaultAppearance
-end
-
-function interface.ToggleDefaultAppearance(bool)
-    replacer.isDefaultAppearance = bool
+    replacer.appearanceLists = table
 end
 
 -- Error Handling --
@@ -128,12 +96,12 @@ end
 function interface.NotifyError(message)
     local errorType, errorMessage = message:match('^(.-)( %-.*)$')
     -- Clear initializing notification but retain prior error messages
-    if not interface.errorOccurred then
+    if not interface.state.errorOccurred then
         interface.notificationMessage = ''
     end
     interface.notificationMessage = interface.notificationMessage .. errorType .. '\n' .. errorMessage .. '\n'
     interface.statusFeedLines = interface.statusFeedLines + 2
-    interface.errorOccurred = true
+    interface.state.errorOccurred = true
 end
 
 local function SaveData()
@@ -144,31 +112,31 @@ local function SaveData()
     else
         file:write('local settings = {\n')
         file:write('\tdefaultAppsV = {\n')
-        for k, v in pairs(user.settings.defaultAppsV) do
+        for k, v in pairs(interface.userSettings.defaultAppsV) do
             file:write(string.format('\t\t[%d] = \'%s\',\n', k, v))
         end
         file:write('\t},\n')
         file:write('\tdefaultAppsJ = {\n')
-        for k, v in pairs(user.settings.defaultAppsJ) do
+        for k, v in pairs(interface.userSettings.defaultAppsJ) do
             file:write(string.format('\t\t[%d] = \'%s\',\n', k, v))
         end
         file:write('\t},\n')
         file:write('\tcomboStateV = {\n')
-        for k, v in pairs(user.settings.comboStateV) do
+        for k, v in pairs(interface.userSettings.comboStateV) do
             file:write(string.format('\t\t[%d] = %d,\n', k, v))
         end
         file:write('\t},\n')
         file:write('\tcomboStateJ = {\n')
-        for k, v in pairs(user.settings.comboStateJ) do
+        for k, v in pairs(interface.userSettings.comboStateJ) do
             file:write(string.format('\t\t[%d] = %d,\n', k, v))
         end
         file:write('\t},\n')
         file:write('\tdefaultTemplate = {\n')
-        local defaultTemplate = replacer.data.defaultTemplate:gsub('\\', '\\\\')
+        local defaultTemplate = replacer.defaultTemplate:gsub('\\', '\\\\')
         file:write(string.format('\t\t\'%s\',\n', defaultTemplate))
         file:write('\t},\n')
         file:write('\tdefaultEntity = {\n')
-        local defaultEntity = replacer.data.defaultEntity:gsub('\\', '\\\\')
+        local defaultEntity = replacer.defaultEntity:gsub('\\', '\\\\')
         file:write(string.format('\t\t\'%s\',\n', defaultEntity))
         file:write('\t},\n')
         file:write('}\n\nreturn settings')
@@ -206,7 +174,7 @@ function SaveAppearanceNameChange(newAppearanceName, tableIndex, appearanceIndex
         file:write('-- Credit: xBaebsae\n--- For assembling these appearance lists\n\n')
         file:write('local appearances = ' .. SerializeTable(appearances) .. '\n\nreturn appearances')
         file:close()
-        interface.isAppearancesListUpdated = true
+        interface.state.isAppearancesListUpdated = true
     end
 end
 
@@ -215,29 +183,29 @@ end
 ---@param data table (data.lua)
 function interface.Initialize(data)
     -- Pull values from data module
-    replacer.data.characterTypes = data.characterTypes
-    replacer.data.defaultPaths = data.defaultPaths
-    replacer.data.entityPaths = data.entityPaths
-    replacer.data.puppetTorsoRecord = data.puppetTorsoRecord
-    replacer.data.puppetTorsoAppearance = data.puppetTorsoAppearance
+    replacer.characterTypes = data.characterTypes
+    replacer.defaultPaths = data.defaultPaths
+    replacer.entityPaths = data.entityPaths
+    replacer.puppetTorsoRecord = data.puppetTorsoRecord
+    replacer.puppetTorsoAppearance = data.puppetTorsoAppearance
 
     -- Initialize interface settings
-    vSelection = replacer.data.characterTypes[1]
-    jSelection = replacer.data.characterTypes[1]
+    vSelection = replacer.characterTypes[1]
+    jSelection = replacer.characterTypes[1]
 
     -- Setup default user settings
-    for i, v in pairs(user.settings.comboStateV) do
+    for i, v in pairs(interface.userSettings.comboStateV) do
         defaultComboValuesV[i] = v
     end
 
-    for i, v in pairs(user.settings.comboStateJ) do
+    for i, v in pairs(interface.userSettings.comboStateJ) do
         defaultComboValuesJ[i] = v
     end
 
-    comboIndexV = user.settings.comboStateV[2]
-    prevComboIndexV = user.settings.comboStateV[2]
-    comboIndexJ = user.settings.comboStateJ[1]
-    prevComboIndexJ = user.settings.comboStateJ[1]
+    comboIndexV = interface.userSettings.comboStateV[2]
+    prevComboIndexV = interface.userSettings.comboStateV[2]
+    comboIndexJ = interface.userSettings.comboStateJ[1]
+    prevComboIndexJ = interface.userSettings.comboStateJ[1]
 end
 
 -- Core Logic --
@@ -254,8 +222,8 @@ function interface.SetupDefaultV()
         index = index + 4
     end
 
-    replacer.data.defaultTemplate = replacer.data.defaultPaths[index]
-    replacer.data.defaultEntity = replacer.data.defaultPaths[index + 1]
+    replacer.defaultTemplate = replacer.defaultPaths[index]
+    replacer.defaultEntity = replacer.defaultPaths[index + 1]
 
     -- Save file paths for troubleshooting non-PL users
     SaveData()
@@ -266,7 +234,7 @@ end
 function interface.PopulatePuppetTable(data)
     -- Populate puppetTable
     for i = 1, 4 do
-        table.insert(replacer.data.puppetTable, {
+        table.insert(replacer.puppetTable, {
             characterRecord = data.tweakDBID[i],
             path = data.defaultPaths[9]
         })
@@ -279,45 +247,45 @@ end
 ---@param character string ('V' or 'Johnny')
 function interface.SetPuppetTable(index, character)
     if character == 'V' then
-        for i, entry in ipairs(replacer.data.puppetTable) do
+        for i, entry in ipairs(replacer.puppetTable) do
             -- If entry is not Johnny
             if i ~= 4 then
                 -- If resetting to default V
                 if index == 1 then
                     if i == 1 then
-                        TweakDB:SetFlat(entry.characterRecord, replacer.data.defaultTemplate)
+                        TweakDB:SetFlat(entry.characterRecord, replacer.defaultTemplate)
                     else
-                        TweakDB:SetFlat(entry.characterRecord, replacer.data.defaultEntity)
+                        TweakDB:SetFlat(entry.characterRecord, replacer.defaultEntity)
                     end
                 -- If replacing V
                 else
-                    TweakDB:SetFlat(entry.characterRecord, replacer.data.entityPaths[index])
+                    TweakDB:SetFlat(entry.characterRecord, replacer.entityPaths[index])
                 end
             end
         end
     elseif character == 'Johnny' then
         -- If resetting to Johnny
         if index == 1 then
-            TweakDB:SetFlat(replacer.data.puppetTable[4].characterRecord, replacer.data.defaultPaths[9])
+            TweakDB:SetFlat(replacer.puppetTable[4].characterRecord, replacer.defaultPaths[9])
         -- If replacing Johnny
         else
-            TweakDB:SetFlat(replacer.data.puppetTable[4].characterRecord, replacer.data.entityPaths[index])
+            TweakDB:SetFlat(replacer.puppetTable[4].characterRecord, replacer.entityPaths[index])
         end
     end
 
     -- Toggle TPP for player or replacer
     if index == 1 then
-        TweakDB:SetFlat(replacer.data.puppetTorsoRecord, replacer.data.puppetTorsoAppearance)
+        TweakDB:SetFlat(replacer.puppetTorsoRecord, replacer.puppetTorsoAppearance)
     else
-        TweakDB:SetFlat(replacer.data.puppetTorsoRecord, '')
+        TweakDB:SetFlat(replacer.puppetTorsoRecord, '')
     end
 end
 
 function interface.ResetInterface()
     vSelection = 'Default'
     jSelection = 'Default'
-    replacer.vEntity = 1
-    replacer.jEntity = 1
+    interface.options.vIndex = 1
+    interface.options.jIndex = 1
     interface.statusFeedLines = 3
     interface.SetPuppetTable(1, 'Johnny')
 end
@@ -371,7 +339,7 @@ function interface.DrawUI()
         if ImGui.BeginTabBar('##TabBar2') then
             if ImGui.BeginTabItem('V Replacer') then
 
-                radioGroupV = CreateRadioButtons(radioGroupV, replacer.data.characterTypes, sameLineIntervals, 2)
+                radioGroupV = CreateRadioButtons(radioGroupV, replacer.characterTypes, sameLineIntervals, 2)
 
                 if radioGroupV ~= prevRadioGroupV then
                     -- Save the current combo index at the index of the previous radio button
@@ -382,7 +350,7 @@ function interface.DrawUI()
                     comboIndexV = comboStateV[radioGroupV] or (defaultComboValuesV[radioGroupV] or 0)
                 end
 
-                comboIndexV = ImGui.Combo('##Combo 10', comboIndexV, replacer.data.appearanceLists[radioGroupV], #replacer.data.appearanceLists[radioGroupV])
+                comboIndexV = ImGui.Combo('##Combo 10', comboIndexV, replacer.appearanceLists[radioGroupV], #replacer.appearanceLists[radioGroupV])
 
                 comboStateV[radioGroupV] = comboIndexV
 
@@ -390,9 +358,9 @@ function interface.DrawUI()
                     prevComboIndexV = comboIndexV
                 end
 
-                if comboIndexV ~= user.settings.comboStateV[radioGroupV] then
-                    user.settings.comboStateV[radioGroupV] = comboIndexV
-                    user.settings.defaultAppsV[radioGroupV] = replacer.data.appearanceLists[radioGroupV][comboIndexV + 1]
+                if comboIndexV ~= interface.userSettings.comboStateV[radioGroupV] then
+                    interface.userSettings.comboStateV[radioGroupV] = comboIndexV
+                    interface.userSettings.defaultAppsV[radioGroupV] = replacer.appearanceLists[radioGroupV][comboIndexV + 1]
                     SaveData()
                 end
                 
@@ -405,7 +373,7 @@ function interface.DrawUI()
         if ImGui.BeginTabBar('##TabBar2') then
             if ImGui.BeginTabItem('Johnny Replacer') then
 
-                radioGroupJ = CreateRadioButtons(radioGroupJ, replacer.data.characterTypes, sameLineIntervals, 1)
+                radioGroupJ = CreateRadioButtons(radioGroupJ, replacer.characterTypes, sameLineIntervals, 1)
 
                 if radioGroupJ ~= prevRadioGroupJ then
                     -- Save the current combo index at the index of the previous radio button
@@ -416,7 +384,7 @@ function interface.DrawUI()
                     comboIndexJ = comboStateJ[radioGroupV] or (defaultComboValuesJ[radioGroupJ] or 0)
                 end
 
-                comboIndexJ = ImGui.Combo('##Combo 11', comboIndexJ, replacer.data.appearanceLists[radioGroupJ], #replacer.data.appearanceLists[radioGroupJ])
+                comboIndexJ = ImGui.Combo('##Combo 11', comboIndexJ, replacer.appearanceLists[radioGroupJ], #replacer.appearanceLists[radioGroupJ])
 
                 comboStateJ[radioGroupJ] = comboIndexJ
 
@@ -424,9 +392,9 @@ function interface.DrawUI()
                     prevComboIndexJ = comboIndexJ
                 end
 
-                if comboIndexJ ~= user.settings.comboStateJ[radioGroupJ] then
-                    user.settings.comboStateJ[radioGroupJ] = comboIndexJ
-                    user.settings.defaultAppsJ[radioGroupJ] = replacer.data.appearanceLists[radioGroupJ][comboIndexJ + 1]
+                if comboIndexJ ~= interface.userSettings.comboStateJ[radioGroupJ] then
+                    interface.userSettings.comboStateJ[radioGroupJ] = comboIndexJ
+                    interface.userSettings.defaultAppsJ[radioGroupJ] = replacer.appearanceLists[radioGroupJ][comboIndexJ + 1]
                     SaveData()
                 end
 
@@ -477,7 +445,7 @@ function interface.DrawUI()
             ImGui.Separator()
         end
 
-        radioGroupNPV = CreateRadioButtons(radioGroupNPV, replacer.data.characterTypes, sameLineIntervalsNPV, 5)
+        radioGroupNPV = CreateRadioButtons(radioGroupNPV, replacer.characterTypes, sameLineIntervalsNPV, 5)
 
         if radioGroupNPV ~= prevRadioGroupNPV then
             -- Save the current combo index at the index of the previous radio button
@@ -488,7 +456,7 @@ function interface.DrawUI()
             comboIndexNPV = comboStateNPV[radioGroupNPV] or (defaultComboValuesNPV[radioGroupNPV] or 0)
         end
 
-        comboIndexNPV = ImGui.Combo('##Combo12', comboIndexNPV, replacer.data.appearanceLists[radioGroupNPV], #replacer.data.appearanceLists[radioGroupNPV])
+        comboIndexNPV = ImGui.Combo('##Combo12', comboIndexNPV, replacer.appearanceLists[radioGroupNPV], #replacer.appearanceLists[radioGroupNPV])
 
         comboStateNPV[radioGroupNPV] = comboIndexNPV
 
@@ -521,8 +489,17 @@ function interface.DrawUI()
                     ['\n'] = ' ',
                     ['\t'] = ' ',
                 }
-                replacer.data.appearanceLists[radioGroupNPV][comboIndexNPV + 1] = string.gsub(newAppearance, "[\\'\"%c]", replacements)
+                replacer.appearanceLists[radioGroupNPV][comboIndexNPV + 1] = string.gsub(newAppearance, "[\\'\"%c]", replacements)
                 SaveAppearanceNameChange(newAppearance, radioGroupNPV, comboIndexNPV + 1)
+            end
+        end
+
+        if interface.state.isPhotoModeActive and not isWarningChecked then
+            ImGui.Separator()
+            ImGui.TextColored(1, 0.9098039215686274, 0, 1, "Changes are not immediate inside of Photo Mode")
+            
+            if ImGui.Button("OK", -1, 0) then
+                isWarningChecked = true
             end
         end
         
@@ -530,22 +507,22 @@ function interface.DrawUI()
     end
 
     -- Pre-load
-    if not interface.ready or interface.errorOccurred or user.isLoadingSaveFile or user.isInPhotoMode then
+    if not interface.ready or interface.state.errorOccurred or interface.state.isGameLoadingSaveFile or interface.state.isPhotoModeActive then
         ImGui.TextColored(0.5, 0.5, 0.5, 1, interface.notificationArea)
         interface.notificationMessage = ImGui.InputTextMultiline('##InputTextMultiline', interface.notificationMessage, 330, -1, interface.statusFeedLines * ImGui.GetTextLineHeight())
     -- Post-load
-    elseif interface.ready and not interface.errorOccurred then
+    elseif interface.ready and not interface.state.errorOccurred then
         if ImGui.BeginTabBar('##TabBar') then
             if ImGui.BeginTabItem('V Replacer') then
                 ImGui.TextDisabled('Choose a character model:')
                 if ImGui.BeginCombo('##Combo1', vSelection) then
-                    for index, option in ipairs(replacer.data.characterTypes) do
+                    for index, option in ipairs(replacer.characterTypes) do
                         if ImGui.Selectable(option, (option == vSelection)) then
                             vSelection = option
-                            replacer.vEntity = index
+                            interface.options.vIndex = index
                             interface.SetPuppetTable(index, 'V')
                             ImGui.SetItemDefaultFocus()
-                            replacer.isDefaultAppearance = true
+                            interface.state.isDefaultAppearance = true
                         end
                     end
                     ImGui.EndCombo()
@@ -555,13 +532,13 @@ function interface.DrawUI()
             if ImGui.BeginTabItem('Johnny Replacer') then
                 ImGui.TextDisabled('Choose a character model:')
                 if ImGui.BeginCombo('##Combo2', jSelection) then
-                    for index, option in ipairs(replacer.data.characterTypes) do
+                    for index, option in ipairs(replacer.characterTypes) do
                         if ImGui.Selectable(option, (option == jSelection)) then
                             jSelection = option
-                            replacer.jEntity = index
+                            interface.options.jIndex = index
                             interface.SetPuppetTable(index, 'Johnny')
                             ImGui.SetItemDefaultFocus()
-                            replacer.isDefaultAppearance = true
+                            interface.state.isDefaultAppearance = true
                         end
                     end
                     ImGui.EndCombo()

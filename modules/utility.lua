@@ -1,7 +1,4 @@
-local util = {
-    vDefaultAppearances = {},
-    jDefaultAppearances = {}
-}
+local util = {}
 
 ---@param searchID string
 function util.LocatePlayerPuppet(searchID)

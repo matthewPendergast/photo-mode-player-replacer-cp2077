@@ -42,9 +42,7 @@ local currEntity = {
 }
 local currID = nil
 
-function hooks.SetParsedTable(table)
-    parsedTable = table
-end
+-- Accessors --
 
 ---@param newV string
 ---@param newJ string
@@ -55,10 +53,16 @@ function hooks.SetLocNames(newV, newJ, newN)
     menuController.locName.nibbles = newN
 end
 
+function hooks.SetParsedTable(table)
+    parsedTable = table
+end
+
 function SetCurrEntity(vIndex, jIndex)
     currEntity.v = vIndex
     currEntity.j = jIndex
 end
+
+-- Menu Controller Functions --
 
 ---@param this gameuiPhotoModeMenuController
 local function SetupMenuControllerItems(this)
@@ -82,6 +86,7 @@ local function RestrictAppearanceMenuItems(character, headerMenuItem, appearance
     elseif character == menuController.locName.johnny and currEntity.j == 1 then
         appearanceMenuItem.OptionLabelRef:SetText(menuController.data.currParsedApp)
         appearanceMenuItem.OptionSelector.index = menuController.data.currAppIndex + 1
+    -- For other cases where menuItems need to be restricted
     else
         headerMenuItem.OptionLabelRef:SetText(menuController.data.currHeader)
         headerMenuItem.OptionSelector.index = menuController.data.currHeaderIndex - 1
@@ -122,13 +127,15 @@ local function ResetMenuControllerData()
     currID = nil
 end
 
+-- Game Hooks --
+
 ---@param PMPR table
-function hooks.SetupObservers(PMPR)
+function hooks.Initialize(PMPR)
     Override("PhotoModeSystem", "IsPhotoModeActive", function(this, wrappedMethod)
         -- Prevent multiple callbacks on Override
         if isPhotoModeActive ~= wrappedMethod() then
             isPhotoModeActive = wrappedMethod()
-            PMPR.modules.interface.ToggleInPhotoMode(wrappedMethod())
+            PMPR.modules.interface.state.isPhotoModeActive = wrappedMethod()
             if isPhotoModeActive then
                 PMPR.modules.interface.SetNotificationMessage('Unavailable within Photo Mode \n')
             end
@@ -190,13 +197,11 @@ function hooks.SetupObservers(PMPR)
                 appIndex = 1
                 PMPR.ToggleDefaultAppearance(false)
             else
-                --defaultAppearance = PMPR.modules.properties.defAppsV[currEntity.v].appearanceName
                 defaultAppearance = PMPR.modules.settings.defaultAppsV[currEntity.v]
             end
         elseif character == menuController.locName.johnny then
             entIndex = currEntity.j
             idIndex = 2
-            --defaultAppearance = PMPR.modules.properties.defAppsJ[currEntity.j].appearanceName
             defaultAppearance = PMPR.modules.settings.defaultAppsJ[currEntity.j]
         end
 
@@ -235,6 +240,13 @@ function hooks.SetupObservers(PMPR)
                     end
                 end
             end
+            if not found then
+                headerIndex = 1
+                appIndex = 1
+            end
+        else
+            headerIndex = 1
+            appIndex = 1
         end
 
         -- Populate appearance data

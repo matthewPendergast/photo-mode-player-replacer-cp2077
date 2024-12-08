@@ -1,50 +1,40 @@
 local PMPR = {
     version = '1.0.0',
-    initialized = false,
     modules = {
         data = require('modules/data.lua'),
-        debug = require('modules/debug.lua'),
         gameSession = require('external/GameSession.lua'),
         hooks = require('modules/hooks.lua'),
         interface = require('modules/interface.lua'),
-        properties = require('properties.lua'),
         settings = require('user/settings.lua'),
         util = require('modules/utility.lua'),
     },
 }
+
+-- CET State --
 
 local isOverlayOpen = false
 
 -- Accessors --
 
 function PMPR.GetVEntity()
-    return PMPR.modules.interface.GetVEntity()
+    return PMPR.modules.interface.options.vIndex
 end
 
 function PMPR.GetJEntity()
-    return PMPR.modules.interface.GetJEntity()
-end
-
----@param character string ('V' or 'Johnny')
-function PMPR.GetEntityByCharacter(character)
-    if character == 'V' then
-        return PMPR.GetVEntity()
-    elseif character == 'Johnny' then
-        return PMPR.GetJEntity()
-    end
+    return PMPR.modules.interface.options.jIndex
 end
 
 function PMPR.IsDefaultAppearance()
-    return PMPR.modules.interface.IsDefaultAppearance()
+    return PMPR.modules.interface.state.IsDefaultAppearance
 end
 
 function PMPR.ToggleDefaultAppearance(bool)
-    PMPR.modules.interface.ToggleDefaultAppearance(bool)
+    PMPR.modules.interface.state.IsDefaultAppearance = bool
 end
 
 ---@param index integer (1-2)
 function PMPR.GetEntityID(index)
-    return PMPR.modules.data.GetEntityID(index)
+    return PMPR.modules.data.entityIDs[index]
 end
 
 -- Error Handling --
@@ -63,27 +53,19 @@ local function CheckDependencies()
     end
 end
 
-local function Initialize()
-    -- Setup default appearance preferences
-    for i, entry in ipairs(PMPR.modules.properties.defAppsV) do
-        PMPR.modules.util.vDefaultAppearances[i] = entry.appearanceName
-    end
-
-    for i, entry in ipairs(PMPR.modules.properties.defAppsJ) do
-        PMPR.modules.util.jDefaultAppearances[i] = entry.appearanceName
-    end
-end
-
 local function ParseAppearanceLists()
-    local censor = {
-        oldTerms = {'Chubby', 'Freak', 'Junkie', 'Lowlife', 'Prostitute', 'Redneck'},
-        newTerms = {'Curvy', 'Eccentric', 'Vagrant', 'Working Class', 'Sexworker', 'Rural'},
-    }
+    local censor = PMPR.modules.data.censor
     local filePath = "external/appearances.lua"
     local parsedTable = {}
     local parsedList = {}
 
     local requiredData = dofile(filePath)
+    local success, customAppearances = pcall(require, 'custom/customAppearances.lua')
+    if success and type(customAppearances) == "table" then
+        for i = 1, #customAppearances do
+            requiredData[i + 4] = customAppearances[i]
+        end
+    end
     for index, group in ipairs(requiredData) do
         local groupedAppearances = {headers = {}, data = {}}
         local parsedGroup = {} -- Initialize a new table for this group's parsed names
@@ -138,7 +120,7 @@ local function ParseAppearanceLists()
                     table.insert(parsedGroup, censoredLine)
 
                     -- Convert custon NPV names back to valid appearanceNames
-                    if index > 4 then
+                    if index > 4 and not success then
                         line = string.format('appearance_%02d', counter)
                         counter = counter + 1
                     end
@@ -160,13 +142,14 @@ end
 
 
 function SetupLocalization()
-    local record = PMPR.modules.data.defaultLocNames
-    local v = PMPR.modules.properties.locNames.V
-    local johnny = PMPR.modules.properties.locNames.Johnny
-    local nibbles = PMPR.modules.properties.locNames.Nibbles
+    -- Full localization coming soon (TM)
+    local locNames = PMPR.modules.data.defaultLocNames
+    local v = 'V Replacer'
+    local johnny = 'Johnny Replacer'
+    local nibbles = 'Nibbles Replacer'
 
     PMPR.modules.hooks.SetLocNames(v, johnny, nibbles)
-    TweakDB:SetFlat(record, {v, johnny, nibbles})
+    TweakDB:SetFlat(locNames, {v, johnny, nibbles})
 end
 
 -- CET Event Handling --
@@ -175,25 +158,24 @@ registerForEvent('onTweak', SetupLocalization)
 
 registerForEvent('onInit', function()
     CheckDependencies()
-    Initialize()
     ParseAppearanceLists()
 
-    PMPR.modules.hooks.SetupObservers(PMPR)
+    PMPR.modules.hooks.Initialize(PMPR)
     PMPR.modules.interface.Initialize(PMPR.modules.data)
 
     PMPR.modules.gameSession.OnStart(function()
-        -- Initialize interface
+        -- Initialize/reinitialize interface
         if not PMPR.modules.interface.ready then
             PMPR.modules.interface.PopulatePuppetTable(PMPR.modules.data)
         end
         -- Reset V default paths and switch interface to replacer options
         PMPR.modules.interface.SetupDefaultV()
-        PMPR.modules.interface.ToggleLoadingSaveFile(false)
+        PMPR.modules.interface.state.isGameLoadingSaveFile = false
     end)
 
     PMPR.modules.gameSession.OnEnd(function()
         -- Switch interface to status feed and reset values
-        PMPR.modules.interface.ToggleLoadingSaveFile(true)
+        PMPR.modules.interface.state.isGameLoadingSaveFile = true
         PMPR.modules.interface.ResetInterface()
         PMPR.modules.interface.SetNotificationMessage('Re-initializing... \n')
     end)
@@ -209,9 +191,9 @@ end)
 
 registerForEvent('onUpdate', function ()
     -- Update appearance lists for changes to NPV names
-    if PMPR.modules.interface.isAppearancesListUpdated == true then
+    if PMPR.modules.interface.state.isAppearancesListUpdated == true then
         ParseAppearanceLists()
-        PMPR.modules.interface.isAppearancesListUpdated = false
+        PMPR.modules.interface.state.isAppearancesListUpdated = false
     end
 end)
 
