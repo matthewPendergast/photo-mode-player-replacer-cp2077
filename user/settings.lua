@@ -1,0 +1,56 @@
+local settings = {
+	defaultAppsV = {
+		[2] = "Panam Palmer_Default",
+		[3] = "Johnny Silverhand_Default",
+		[4] = "Jackie Welles_Default",
+		[5] = "appearance_01",
+		[6] = "appearance_01",
+		[7] = "appearance_01",
+		[8] = "appearance_01",
+		[9] = "appearance_01",
+		[10] = "appearance_01",
+	},
+	defaultAppsJ = {
+		[1] = "silverhand_default",
+		[2] = "Judy Alvarez_Default",
+		[3] = "Viktor Vektor_Default",
+		[4] = "Solomon Reed_Default",
+		[5] = "appearance_01",
+		[6] = "appearance_01",
+		[7] = "appearance_01",
+		[8] = "appearance_01",
+		[9] = "appearance_01",
+		[10] = "appearance_01",
+	},
+	comboStateV = {
+		[2] = 128,
+		[3] = 42,
+		[4] = 13,
+		[5] = 0,
+		[6] = 0,
+		[7] = 0,
+		[8] = 0,
+		[9] = 0,
+		[10] = 0,
+	},
+	comboStateJ = {
+		[1] = 3,
+		[2] = 75,
+		[3] = 89,
+		[4] = 40,
+		[5] = 0,
+		[6] = 0,
+		[7] = 0,
+		[8] = 0,
+		[9] = 0,
+		[10] = 0,
+	},
+	defaultTemplate = {
+		"",
+	},
+	defaultEntity = {
+		"",
+	},
+}
+
+return settings

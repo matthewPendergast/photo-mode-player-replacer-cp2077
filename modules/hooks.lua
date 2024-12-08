@@ -33,14 +33,16 @@ local menuController = {
     },
 }
 
+-- Local Variables --
+
 local isPhotoModeActive = false
+local currID = nil
 local parsedTable = {}
 local appearanceTable = {}
 local currEntity = {
     v = 1,
     j = 1,
 }
-local currID = nil
 
 -- Accessors --
 
@@ -132,12 +134,12 @@ end
 ---@param PMPR table
 function hooks.Initialize(PMPR)
     Override("PhotoModeSystem", "IsPhotoModeActive", function(this, wrappedMethod)
-        -- Prevent multiple callbacks on Override
+        -- Prevent multiple calls on Override
         if isPhotoModeActive ~= wrappedMethod() then
             isPhotoModeActive = wrappedMethod()
             PMPR.modules.interface.state.isPhotoModeActive = wrappedMethod()
             if isPhotoModeActive then
-                PMPR.modules.interface.SetNotificationMessage('Unavailable within Photo Mode \n')
+                PMPR.modules.interface.SetNotificationMessage('Unavailable within Photo Mode\n')
             end
             -- Resets the condition for updating default appearance if user doesn't change replacers before reopening photo mode
             if not isPhotoModeActive and not PMPR.IsDefaultAppearance() then
@@ -207,18 +209,15 @@ function hooks.Initialize(PMPR)
 
         -- Set persistent target ID data
         currID = PMPR.GetEntityID(idIndex)
-        
+
         -- Populate appearance table for selected entity if not default photo mode V
-        if entIndex ~= 1 then
+        if not (character == menuController.locName.v and entIndex == 1) then
             appearanceTable = parsedTable[entIndex]
         end
 
         -- Update UI for default appearance settings if not default photo mode V
         if defaultAppearance then
-            local censor = {
-                oldTerms = {'Chubby', 'Freak', 'Junkie', 'Lowlife', 'Prostitute', 'Redneck'},
-                newTerms = {'Curvy', 'Eccentric', 'Vagrant', 'Working Class', 'Sexworker', 'Rural'},
-            }
+            local censor = PMPR.modules.data.censor
             -- Convert appearanceName back to uncensored version
             for i, newTerm in ipairs(censor.newTerms) do
                 if defaultAppearance:find(newTerm) then
@@ -240,10 +239,12 @@ function hooks.Initialize(PMPR)
                     end
                 end
             end
+            -- Fallback condition
             if not found then
                 headerIndex = 1
                 appIndex = 1
             end
+        -- Fallback condition
         else
             headerIndex = 1
             appIndex = 1

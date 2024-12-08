@@ -4,7 +4,6 @@ modules/data.lua
 modules/debug.lua
 roadmap.txt
 custom/
-user/
 external/
 LICENSE.txt
 credits.txt

@@ -55,7 +55,7 @@ end
 
 local function ParseAppearanceLists()
     local censor = PMPR.modules.data.censor
-    local filePath = "external/appearances.lua"
+    local filePath = 'external/appearances.lua'
     local parsedTable = {}
     local parsedList = {}
 
@@ -68,73 +68,65 @@ local function ParseAppearanceLists()
     end
     for index, group in ipairs(requiredData) do
         local groupedAppearances = {headers = {}, data = {}}
-        local parsedGroup = {} -- Initialize a new table for this group's parsed names
+        local parsedGroup = {}
         local counter = 1
 
-        if index == 11 then
-            -- Handle the last table specially
-            table.insert(groupedAppearances.headers, group.headers)
-            groupedAppearances.data[group.headers] = {
-                {parsed = group.parsed, unparsed = group.unparsed}
-            }
-        else
-            for _, line in ipairs(group) do
-                local header, appearance = line:match('^(.-)_(.+)$')
-                if header and appearance then
+        for _, line in ipairs(group) do
+            local header, appearance = line:match('^(.-)_(.+)$')
+            if header and appearance then
 
-                    -- Capitalize all parsed headers and appearances
-                    header = string.gsub(header, '(%w)(%w*)', function(first, rest)
-                        return string.upper(first) .. string.lower(rest)
-                    end)
+                -- Capitalize all parsed headers and appearances
+                header = string.gsub(header, '(%w)(%w*)', function(first, rest)
+                    return string.upper(first) .. string.lower(rest)
+                end)
 
-                    appearance = string.gsub(appearance, '(%w)(%w*)', function(first, rest)
-                        return string.upper(first) .. string.lower(rest)
-                    end)
+                appearance = string.gsub(appearance, '(%w)(%w*)', function(first, rest)
+                    return string.upper(first) .. string.lower(rest)
+                end)
 
-                    -- Remove underscores from headers and appearances
-                    header = string.gsub(header, '_', ' ')
-                    appearance = string.gsub(appearance, '_+', ' ')
+                -- Remove underscores from headers and appearances
+                header = string.gsub(header, '_', ' ')
+                appearance = string.gsub(appearance, '_+', ' ')
 
-                    -- Change potentially offensive terms for NPC replacers only
-                    if index <= 4 then
-                        for i, term in ipairs(censor.oldTerms) do
-                            header = string.gsub(header, term, censor.newTerms[i])
-                            appearance = string.gsub(appearance, term, censor.newTerms[i])
-                        end 
+                -- Change potentially offensive terms for NPC replacers only
+                if index <= 4 then
+                    for i, term in ipairs(censor.oldTerms) do
+                        header = string.gsub(header, term, censor.newTerms[i])
+                        appearance = string.gsub(appearance, term, censor.newTerms[i])
                     end
-
-                    -- Add header to headers list if it's new
-                    if not groupedAppearances.data[header] then
-                        groupedAppearances.data[header] = {}
-                        table.insert(groupedAppearances.headers, header)
-                    end
-
-                    -- Add the censored appearance to the parsedGroup
-                    local censoredLine = string.gsub(line, '(%w+)', function(word)
-                        for i, term in ipairs(censor.oldTerms) do
-                            word = string.gsub(word, term, censor.newTerms[i])
-                        end
-                        return word
-                    end)
-                    
-                    table.insert(parsedGroup, censoredLine)
-
-                    -- Convert custon NPV names back to valid appearanceNames
-                    if index > 4 and not success then
-                        line = string.format('appearance_%02d', counter)
-                        counter = counter + 1
-                    end
-
-                    -- Add appearance to the header's list
-                    table.insert(groupedAppearances.data[header], {
-                        parsed = appearance,
-                        unparsed = line
-                    })
                 end
+
+                -- Add header to headers list if it's new
+                if not groupedAppearances.data[header] then
+                    groupedAppearances.data[header] = {}
+                    table.insert(groupedAppearances.headers, header)
+                end
+
+                -- Add the censored appearance to the parsedGroup
+                local censoredLine = string.gsub(line, '(%w+)', function(word)
+                    for i, term in ipairs(censor.oldTerms) do
+                        word = string.gsub(word, term, censor.newTerms[i])
+                    end
+                    return word
+                end)
+
+                table.insert(parsedGroup, censoredLine)
+
+                -- Convert custon NPV names back to valid appearanceNames
+                if index > 4 and not success then
+                    line = string.format('appearance_%02d', counter)
+                    counter = counter + 1
+                end
+
+                -- Add appearance to the header's list
+                table.insert(groupedAppearances.data[header], {
+                    parsed = appearance,
+                    unparsed = line
+                })
             end
         end
         table.insert(parsedTable, groupedAppearances)
-        table.insert(parsedList, parsedGroup) -- Add the parsed group to the parsedList
+        table.insert(parsedList, parsedGroup)
     end
     PMPR.modules.hooks.SetParsedTable(parsedTable)
     PMPR.modules.interface.SetAppearanceLists(parsedList)
