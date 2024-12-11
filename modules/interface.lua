@@ -325,7 +325,7 @@ function interface.DrawUI()
 
     ImGui.PushStyleVar(ImGuiStyleVar.WindowMinSize, 330, 0)
 
-    if not ImGui.Begin(modName, true, ImGuiWindowFlags.AlwaysAutoResize + ImGuiWindowFlags.MenuBar) then
+    if not ImGui.Begin(modName, true, ImGuiWindowFlags.NoResize + ImGuiWindowFlags.MenuBar) then
         ImGui.End()
         return
     end

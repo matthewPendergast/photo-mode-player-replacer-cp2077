@@ -134,14 +134,14 @@ end
 
 
 function SetupLocalization()
-    -- Full localization coming soon (TM)
-    local locNames = PMPR.modules.data.defaultLocNames
-    local v = 'V Replacer'
-    local johnny = 'Johnny Replacer'
-    local nibbles = 'Nibbles Replacer'
+    -- Hacky temporary fix for 2.2
+    local record = PMPR.modules.data.defaultLocNames
+    local locNames = TweakDB:GetFlat(record)
+    locNames[1] = 'V'
+    locNames[2] = 'Johnny'
 
-    PMPR.modules.hooks.SetLocNames(v, johnny, nibbles)
-    TweakDB:SetFlat(locNames, {v, johnny, nibbles})
+    PMPR.modules.hooks.SetLocNames(locNames[1], locNames[2], 'Nibbles')
+    TweakDB:SetFlat(record, locNames)
 end
 
 -- CET Event Handling --
