@@ -35,7 +35,6 @@ local menuController = {
 
 -- Local Variables --
 
-local isPhotoModeActive = false
 local currID = nil
 local parsedTable = {}
 local appearanceTable = {}
@@ -134,28 +133,13 @@ end
 ---@param PMPR table
 function hooks.Initialize(PMPR)
     Override("PhotoModeSystem", "IsPhotoModeActive", function(this, wrappedMethod)
-        -- Prevent multiple calls on Override
-        if isPhotoModeActive ~= wrappedMethod() then
-            isPhotoModeActive = wrappedMethod()
-            PMPR.modules.interface.state.isPhotoModeActive = wrappedMethod()
-            if isPhotoModeActive then
-                PMPR.modules.interface.SetNotificationMessage('Unavailable within Photo Mode\n')
-            end
-            -- Resets the condition for updating default appearance if user doesn't change replacers before reopening photo mode
-            if not isPhotoModeActive and not PMPR.IsDefaultAppearance() then
-                PMPR.ToggleDefaultAppearance(true)
-            end
-        end
-        -- Needs reworked once a better Observer function is found for V's photo mode entity initialization
-        if isPhotoModeActive and PMPR.IsDefaultAppearance() and currID and menuController.data.currUnparsedApp then
+        -- Requires the extra calls; could probably just be Observe
+        if PMPR.modules.interface.state.isPhotoModeActive and PMPR.IsDefaultAppearance() and currID and menuController.data.currUnparsedApp then
             local entity = PMPR.modules.util.LocatePlayerPuppet(currID)
             if entity then
                 PMPR.modules.util.ChangeAppearance(entity, menuController.data.currUnparsedApp)
                 PMPR.ToggleDefaultAppearance(false)
             end
-        end
-        if not isPhotoModeActive and menuController.initialized then
-            ResetMenuControllerData()
         end
     end)
 
@@ -172,9 +156,12 @@ function hooks.Initialize(PMPR)
         local appearanceMenuItem = this:GetMenuItem(menuController.menuItem.replacerAppearanceAttribute)
         local characterMenuItem = this:GetMenuItem(menuController.menuItem.characterAttribute)
         local character = characterMenuItem.OptionLabelRef:GetText()
-        local headerIndex = 0
-        local appIndex = 0
+        local headerIndex = 1
+        local appIndex = 1
         local defaultAppearance, entIndex, idIndex
+
+        PMPR.modules.interface.state.isPhotoModeActive = true
+        PMPR.modules.interface.SetNotificationMessage('Unavailable within Photo Mode\n')
 
         -- Initialize menu item values
         headerMenuItem.GridRoot:SetVisible(false)
@@ -195,8 +182,6 @@ function hooks.Initialize(PMPR)
             idIndex = 1
             if entIndex == 1 then
                 appearanceTable = {headers = {'-'}, data = {['-'] = {{parsed = '-', unparsed = '-'}}}}
-                headerIndex = 1
-                appIndex = 1
                 PMPR.ToggleDefaultAppearance(false)
             else
                 defaultAppearance = PMPR.modules.settings.defaultAppsV[currEntity.v]
@@ -239,15 +224,6 @@ function hooks.Initialize(PMPR)
                     end
                 end
             end
-            -- Fallback condition
-            if not found then
-                headerIndex = 1
-                appIndex = 1
-            end
-        -- Fallback condition
-        else
-            headerIndex = 1
-            appIndex = 1
         end
 
         -- Populate appearance data
@@ -269,6 +245,18 @@ function hooks.Initialize(PMPR)
         SetupMenuControllerItems(this)
         UpdateMenuControllerData(headerIndex, appIndex, headerMenuItem, appearanceMenuItem)
         menuController.initialized = true
+    end)
+
+    ObserveAfter("gameuiPhotoModeMenuController", "OnHide",
+    ---@param this gameuiPhotoModeMenuController
+    function(this)
+        PMPR.modules.interface.state.isPhotoModeActive = false
+        if not PMPR.IsDefaultAppearance() then
+            PMPR.ToggleDefaultAppearance(true)
+        end
+        if menuController.initialized then
+            ResetMenuControllerData()
+        end
     end)
 
     Observe("gameuiPhotoModeMenuController", "OnAttributeUpdated", function(this, attributeKey, attributeValue, doApply)

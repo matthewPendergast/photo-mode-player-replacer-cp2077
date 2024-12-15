@@ -132,13 +132,12 @@ local function ParseAppearanceLists()
     PMPR.modules.interface.SetAppearanceLists(parsedList)
 end
 
-
 function SetupLocalization()
     -- Hacky temporary fix for 2.2
     local record = PMPR.modules.data.defaultLocNames
     local locNames = TweakDB:GetFlat(record)
-    locNames[1] = 'V'
-    locNames[2] = 'Johnny'
+    locNames[1] = Game.GetLocalizedText(locNames[1])
+    locNames[2] = Game.GetLocalizedText(locNames[2])
 
     PMPR.modules.hooks.SetLocNames(locNames[1], locNames[2], 'Nibbles')
     TweakDB:SetFlat(record, locNames)
