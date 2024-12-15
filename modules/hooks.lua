@@ -25,7 +25,6 @@ local menuController = {
     locName = {
         v = nil,
         johnny = nil,
-        nibbles = nil,
     },
     list = {
         parsedApps = {},
@@ -48,10 +47,9 @@ local currEntity = {
 ---@param newV string
 ---@param newJ string
 ---@param newN string
-function hooks.SetLocNames(newV, newJ, newN)
+function hooks.SetLocNames(newV, newJ)
     menuController.locName.v = newV
     menuController.locName.johnny = newJ
-    menuController.locName.nibbles = newN
 end
 
 function hooks.SetParsedTable(table)
@@ -71,29 +69,6 @@ local function SetupMenuControllerItems(this)
     menuController.headerMenuItem = this:GetMenuItem(menuController.menuItem.replacerAttribute)
     menuController.appearanceMenuItem = this:GetMenuItem(menuController.menuItem.replacerAppearanceAttribute)
     menuController.visibleMenuItem = this:GetMenuItem(menuController.menuItem.characterVisibleAttribute)
-end
-
----@param character string
----@param headerMenuItem PhotoModeMenuListItem
----@param appearanceMenuItem PhotoModeMenuListItem
-local function RestrictAppearanceMenuItems(character, headerMenuItem, appearanceMenuItem)
-    -- If Nibbles is selected, disable menu items
-    if character == menuController.locName.nibbles then
-        headerMenuItem.OptionLabelRef:SetText('-')
-        headerMenuItem.OptionSelector.index = 0
-        appearanceMenuItem.OptionLabelRef:SetText('-')
-        appearanceMenuItem.OptionSelector.index = 0
-    -- If default Johnny is selected
-    elseif character == menuController.locName.johnny and currEntity.j == 1 then
-        appearanceMenuItem.OptionLabelRef:SetText(menuController.data.currParsedApp)
-        appearanceMenuItem.OptionSelector.index = menuController.data.currAppIndex + 1
-    -- For other cases where menuItems need to be restricted
-    else
-        headerMenuItem.OptionLabelRef:SetText(menuController.data.currHeader)
-        headerMenuItem.OptionSelector.index = menuController.data.currHeaderIndex - 1
-        appearanceMenuItem.OptionLabelRef:SetText(menuController.data.currParsedApp)
-        appearanceMenuItem.OptionSelector.index = menuController.data.currAppIndex
-    end
 end
 
 ---@param headerIndex integer|nil
@@ -242,6 +217,19 @@ function hooks.Initialize(PMPR)
         appearanceMenuItem.OptionLabelRef:SetText(menuController.list.parsedApps[appIndex])
         appearanceMenuItem.OptionSelector.values = menuController.list.parsedApps
 
+        -- Disable input if menu item has only one option
+        local headerBool = false
+        local appearanceBool = false
+        if #headerMenuItem.OptionSelector.values == 1 then
+            headerBool = true
+        end
+        if #appearanceMenuItem.OptionSelector.values == 1 then
+            appearanceBool = true
+        end
+        headerMenuItem:SetInputDisabled(headerBool)
+        appearanceMenuItem:SetInputDisabled(appearanceBool)
+
+        -- Store persistent data
         SetupMenuControllerItems(this)
         UpdateMenuControllerData(headerIndex, appIndex, headerMenuItem, appearanceMenuItem)
         menuController.initialized = true
@@ -262,54 +250,47 @@ function hooks.Initialize(PMPR)
     Observe("gameuiPhotoModeMenuController", "OnAttributeUpdated", function(this, attributeKey, attributeValue, doApply)
         if  menuController.initialized then
 
-            -- If character attribute is updated
-            if attributeKey == menuController.menuItem.characterAttribute then
-                UpdateMenuControllerData()
-                RestrictAppearanceMenuItems(menuController.character, menuController.headerMenuItem, menuController.appearanceMenuItem)
+            -- If 'Character Visible' menu item is updated
+            if attributeKey == menuController.menuItem.characterVisibleAttribute then
+                if attributeValue == 0 then
+                    menuController.headerMenuItem:GetRootWidget():SetVisible(false)
+                    menuController.appearanceMenuItem:GetRootWidget():SetVisible(false)
+                else
+                    menuController.headerMenuItem:GetRootWidget():SetVisible(true)
+                    menuController.appearanceMenuItem:GetRootWidget():SetVisible(true)
+                end
             end
 
             -- If header attribute is updated
             if attributeKey == menuController.menuItem.replacerAttribute then
                 UpdateMenuControllerData()
+                local headerIndex = menuController.headerMenuItem.OptionSelector.index + 1
+                local entity = PMPR.modules.util.LocatePlayerPuppet(currID)
+                -- Clear appearance data
+                menuController.list.parsedApps = {}
+                menuController.list.unparsedApps = {}
 
-                -- Prevent header options from changing in Nibbles options, when 'Character Visible' is set to 'Off' for V/Johnny, or when there is only one header value
-                if menuController.character == menuController.locName.nibbles or menuController.visibleMenuIndex == 0 or menuController.data.currHeaderCount == 1 then
-                    RestrictAppearanceMenuItems(menuController.character, menuController.headerMenuItem, menuController.appearanceMenuItem)
-                else
-                    local headerIndex = menuController.headerMenuItem.OptionSelector.index + 1
-                    local entity = PMPR.modules.util.LocatePlayerPuppet(currID)
-                    -- Clear appearance data
-                    menuController.list.parsedApps = {}
-                    menuController.list.unparsedApps = {}
-
-                    -- Repopulate appearance data
-                    for _, appearanceData in ipairs(appearanceTable.data[appearanceTable.headers[headerIndex]]) do
-                        table.insert(menuController.list.parsedApps, appearanceData.parsed)
-                        table.insert(menuController.list.unparsedApps, appearanceData.unparsed)
-                    end
-
-                    -- Update appearance menu item
-                    menuController.appearanceMenuItem.OptionSelector.values = menuController.list.parsedApps
-                    menuController.appearanceMenuItem.OptionSelector.index = 0
-                    menuController.appearanceMenuItem.OptionLabelRef:SetText(menuController.list.parsedApps[1])
-
-                    UpdateMenuControllerData((headerIndex), 1, menuController.headerMenuItem, menuController.appearanceMenuItem)
-                    PMPR.modules.util.ChangeAppearance(entity, menuController.data.currUnparsedApp)
+                -- Repopulate appearance data
+                for _, appearanceData in ipairs(appearanceTable.data[appearanceTable.headers[headerIndex]]) do
+                    table.insert(menuController.list.parsedApps, appearanceData.parsed)
+                    table.insert(menuController.list.unparsedApps, appearanceData.unparsed)
                 end
+
+                -- Update appearance menu item
+                menuController.appearanceMenuItem.OptionSelector.values = menuController.list.parsedApps
+                menuController.appearanceMenuItem.OptionSelector.index = 0
+                menuController.appearanceMenuItem.OptionLabelRef:SetText(menuController.list.parsedApps[1])
+
+                UpdateMenuControllerData((headerIndex), 1, menuController.headerMenuItem, menuController.appearanceMenuItem)
+                PMPR.modules.util.ChangeAppearance(entity, menuController.data.currUnparsedApp)
             end
 
             -- If appearance attribute is updated
             if attributeKey == menuController.menuItem.replacerAppearanceAttribute then
                 UpdateMenuControllerData()
-
-                -- Prevent appearance options from changing in Nibbles options, when 'Character Visible' is set to 'Off' for V/Johnny, or when there is only one header value
-                if menuController.character == menuController.locName.nibbles or menuController.visibleMenuIndex == 0 or menuController.data.currAppCount == 1 then
-                    RestrictAppearanceMenuItems(menuController.character, menuController.headerMenuItem, menuController.appearanceMenuItem)
-                else
-                    local entity = PMPR.modules.util.LocatePlayerPuppet(currID)
-                    UpdateMenuControllerData(nil, menuController.appearanceMenuItem.OptionSelector.index + 1, nil, menuController.appearanceMenuItem)
-                    PMPR.modules.util.ChangeAppearance(entity, menuController.data.currUnparsedApp)
-                end
+                local entity = PMPR.modules.util.LocatePlayerPuppet(currID)
+                UpdateMenuControllerData(nil, menuController.appearanceMenuItem.OptionSelector.index + 1, nil, menuController.appearanceMenuItem)
+                PMPR.modules.util.ChangeAppearance(entity, menuController.data.currUnparsedApp)
             end
         end
     end)

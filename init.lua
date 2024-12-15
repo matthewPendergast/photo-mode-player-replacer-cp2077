@@ -133,14 +133,11 @@ local function ParseAppearanceLists()
 end
 
 function SetupLocalization()
-    -- Hacky temporary fix for 2.2
-    local record = PMPR.modules.data.defaultLocNames
-    local locNames = TweakDB:GetFlat(record)
+    local locNames = TweakDB:GetFlat(PMPR.modules.data.defaultLocNames)
     locNames[1] = Game.GetLocalizedText(locNames[1])
     locNames[2] = Game.GetLocalizedText(locNames[2])
 
-    PMPR.modules.hooks.SetLocNames(locNames[1], locNames[2], 'Nibbles')
-    TweakDB:SetFlat(record, locNames)
+    PMPR.modules.hooks.SetLocNames(locNames[1], locNames[2])
 end
 
 -- CET Event Handling --
@@ -189,9 +186,7 @@ registerForEvent('onUpdate', function ()
 end)
 
 registerForEvent('onDraw', function()
-    if not isOverlayOpen then
-        return
-    elseif isOverlayOpen then
+    if isOverlayOpen then
         PMPR.modules.interface.DrawUI()
     end
 end)
