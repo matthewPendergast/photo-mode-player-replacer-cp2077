@@ -10,8 +10,8 @@ local menuController = {
         characterVisibleAttribute = 27,
         replacerAttribute = 9000,
         replacerAppearanceAttribute = 9001,
-        replacerLabel = 'REPLACER CHARACTER',
-        appearanceLabel = 'REPLACER APPEARANCE',
+        replacerLabel = 'Character',
+        appearanceLabel = 'Appearance',
     },
     data = {
         currHeaderIndex = nil,
@@ -120,7 +120,7 @@ function hooks.Initialize(PMPR)
 
     Override("gameuiPhotoModeMenuController", "AddMenuItem", function(this, label, attributeKey, page, isAdditional, wrappedMethod)
         wrappedMethod(label, attributeKey, page, isAdditional)
-        if page == menuController.menuPage.pose and attributeKey == menuController.menuItem.characterVisibleAttribute then
+        if page == menuController.menuPage.pose and attributeKey == menuController.menuItem.characterAttribute then
             this:AddMenuItem(menuController.menuItem.replacerLabel, menuController.menuItem.replacerAttribute, page, false)
             this:AddMenuItem(menuController.menuItem.appearanceLabel, menuController.menuItem.replacerAppearanceAttribute, page, false)
         end
@@ -156,7 +156,7 @@ function hooks.Initialize(PMPR)
             entIndex = currEntity.v
             idIndex = 1
             if entIndex == 1 then
-                appearanceTable = {headers = {'-'}, data = {['-'] = {{parsed = '-', unparsed = '-'}}}}
+                appearanceTable = {headers = {'V'}, data = {['V'] = {{parsed = '-', unparsed = '-'}}}}
                 PMPR.ToggleDefaultAppearance(false)
             else
                 defaultAppearance = PMPR.modules.settings.defaultAppsV[currEntity.v]
@@ -228,6 +228,9 @@ function hooks.Initialize(PMPR)
         end
         headerMenuItem:SetInputDisabled(headerBool)
         appearanceMenuItem:SetInputDisabled(appearanceBool)
+
+        -- Adjust UI
+        this:GetChildWidgetByPath('options_panel'):SetHeight(650.0)
 
         -- Store persistent data
         SetupMenuControllerItems(this)
