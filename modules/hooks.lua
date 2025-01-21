@@ -8,8 +8,8 @@ local menuController = {
     menuItem = {
         characterAttribute = 38,
         characterVisibleAttribute = 27,
-        replacerAttribute = 9000,
-        replacerAppearanceAttribute = 9001,
+        replacerAttribute = 8000,
+        replacerAppearanceAttribute = 8001,
         replacerLabel = 'Character',
         appearanceLabel = 'Appearance',
     },
